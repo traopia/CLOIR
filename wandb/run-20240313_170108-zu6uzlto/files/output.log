@@ -1,0 +1,7 @@
+Epoch [1/10], Train Loss: 0.0594, Train Accuracy: 0.07446590987118808%
+Epoch [1/10], Val Loss: 0.0641, Val Accuracy: 0.07924768726030985
+Epoch [2/10], Train Loss: 0.0398, Train Accuracy: 0.08502651696855372%
+Epoch [2/10], Val Loss: 0.0364, Val Accuracy: 0.08445602059364318
+Epoch [3/10], Train Loss: 0.0255, Train Accuracy: 0.09025947045196187%
+Epoch [3/10], Val Loss: 0.0270, Val Accuracy: 0.09017361203829448
+Epoch [4/10], Train Loss: 0.0194, Train Accuracy: 0.09264109974557704%

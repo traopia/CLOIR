@@ -1,0 +1,76 @@
+Epoch [1/10], Step [1/22],Train Loss: 0.8273633122444153, Train Accuracy: 0.699999988079071%
+Epoch [1/10], Step [2/22],Train Loss: 0.3039484918117523, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [3/22],Train Loss: 0.5444883704185486, Train Accuracy: 0.699999988079071%
+Epoch [1/10], Step [4/22],Train Loss: 0.25659576058387756, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [5/22],Train Loss: 0.6682435274124146, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [6/22],Train Loss: 0.5971537828445435, Train Accuracy: 0.699999988079071%
+Epoch [1/10], Step [7/22],Train Loss: 0.3211286664009094, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [8/22],Train Loss: 0.5942503809928894, Train Accuracy: 0.699999988079071%
+Epoch [1/10], Step [9/22],Train Loss: 0.43509265780448914, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [10/22],Train Loss: 0.31867390871047974, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [11/22],Train Loss: 0.4460218548774719, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [12/22],Train Loss: 0.5129981637001038, Train Accuracy: 0.699999988079071%
+Epoch [1/10], Step [13/22],Train Loss: 0.19521962106227875, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [14/22],Train Loss: 0.16602058708667755, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [15/22],Train Loss: 0.14336948096752167, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [16/22],Train Loss: 0.31820154190063477, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [17/22],Train Loss: 0.372685968875885, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [18/22],Train Loss: 0.39516016840934753, Train Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [19/22],Train Loss: 0.005662822630256414, Train Accuracy: 1.0%
+Epoch [1/10], Step [20/22],Train Loss: 0.9846526980400085, Train Accuracy: 0.5%
+Epoch [1/10], Step [21/22],Train Loss: 0.4202778935432434, Train Accuracy: 0.800000011920929%
+Epoch [1/10], Step [22/22],Train Loss: 1.2692469358444214, Train Accuracy: 0.4000000059604645%
+Epoch [1/10], Step [1/3], Val Loss: 0.2772, Val Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [2/3], Val Loss: 0.7188, Val Accuracy: 0.9000000357627869%
+Epoch [1/10], Step [3/3], Val Loss: 0.6944, Val Accuracy: 0.699999988079071%
+Epoch [1], Train Loss: 0.0523, Train Accuracy: 0.07590909202223305%
+Epoch [1], Val Loss: 0.0475, Val Accuracy: 0.06531250104308128%
+Epoch [2/10], Step [1/22],Train Loss: 0.7487756609916687, Train Accuracy: 0.6000000238418579%
+Epoch [2/10], Step [2/22],Train Loss: 0.2558527886867523, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [3/22],Train Loss: 0.19388829171657562, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [4/22],Train Loss: 0.26740315556526184, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [5/22],Train Loss: 0.0, Train Accuracy: 1.0%
+Epoch [2/10], Step [6/22],Train Loss: 0.29988113045692444, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [7/22],Train Loss: 0.3005618751049042, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [8/22],Train Loss: 0.25727424025535583, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [9/22],Train Loss: 0.09217000007629395, Train Accuracy: 1.0%
+Epoch [2/10], Step [10/22],Train Loss: 0.05825786665081978, Train Accuracy: 1.0%
+Epoch [2/10], Step [11/22],Train Loss: 0.5754892230033875, Train Accuracy: 0.699999988079071%
+Epoch [2/10], Step [12/22],Train Loss: 0.35953131318092346, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [13/22],Train Loss: 0.5205439925193787, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [14/22],Train Loss: 0.18279147148132324, Train Accuracy: 1.0%
+Epoch [2/10], Step [15/22],Train Loss: 0.3671691119670868, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [16/22],Train Loss: 0.48247861862182617, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [17/22],Train Loss: 0.21590061485767365, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [18/22],Train Loss: 0.24980418384075165, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [19/22],Train Loss: 0.1419837772846222, Train Accuracy: 1.0%
+Epoch [2/10], Step [20/22],Train Loss: 0.4686010479927063, Train Accuracy: 0.699999988079071%
+Epoch [2/10], Step [21/22],Train Loss: 0.12227418273687363, Train Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [22/22],Train Loss: 0.3970317542552948, Train Accuracy: 0.800000011920929%
+Epoch [2/10], Step [1/3], Val Loss: 0.1803, Val Accuracy: 0.9000000357627869%
+Epoch [2/10], Step [2/3], Val Loss: 0.1146, Val Accuracy: 1.0%
+Epoch [2/10], Step [3/3], Val Loss: 0.9649, Val Accuracy: 0.699999988079071%
+Epoch [2], Train Loss: 0.0305, Train Accuracy: 0.08531250140672042%
+Epoch [2], Val Loss: 0.0292, Val Accuracy: 0.07385416796120504%
+Epoch [3/10], Step [1/22],Train Loss: 0.2597660720348358, Train Accuracy: 1.0%
+Epoch [3/10], Step [2/22],Train Loss: 0.33139944076538086, Train Accuracy: 0.800000011920929%
+Epoch [3/10], Step [3/22],Train Loss: 0.07921157032251358, Train Accuracy: 1.0%
+Epoch [3/10], Step [4/22],Train Loss: 0.023984599858522415, Train Accuracy: 1.0%
+Epoch [3/10], Step [5/22],Train Loss: 0.14597280323505402, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [6/22],Train Loss: 0.19558782875537872, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [7/22],Train Loss: 0.1909068077802658, Train Accuracy: 1.0%
+Epoch [3/10], Step [8/22],Train Loss: 0.28061625361442566, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [9/22],Train Loss: 0.2580823004245758, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [10/22],Train Loss: 0.17790837585926056, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [11/22],Train Loss: 0.819201648235321, Train Accuracy: 0.5%
+Epoch [3/10], Step [12/22],Train Loss: 0.10130596160888672, Train Accuracy: 1.0%
+Epoch [3/10], Step [13/22],Train Loss: 0.13474693894386292, Train Accuracy: 1.0%
+Epoch [3/10], Step [14/22],Train Loss: 0.0, Train Accuracy: 1.0%
+Epoch [3/10], Step [15/22],Train Loss: 0.04846818372607231, Train Accuracy: 1.0%
+Epoch [3/10], Step [16/22],Train Loss: 0.15499253571033478, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [17/22],Train Loss: 0.2715306282043457, Train Accuracy: 0.800000011920929%
+Epoch [3/10], Step [18/22],Train Loss: 0.17571011185646057, Train Accuracy: 1.0%
+Epoch [3/10], Step [19/22],Train Loss: 0.19574546813964844, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [20/22],Train Loss: 0.18747882544994354, Train Accuracy: 1.0%
+Epoch [3/10], Step [21/22],Train Loss: 0.15964169800281525, Train Accuracy: 0.9000000357627869%
+Epoch [3/10], Step [22/22],Train Loss: 0.0395827554166317, Train Accuracy: 1.0%

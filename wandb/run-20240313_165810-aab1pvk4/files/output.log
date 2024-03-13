@@ -1,0 +1,11 @@
+
+torch.Size([10, 512])
+Traceback (most recent call last):
+  File "/Users/traopia/Documents/GitHub/Artistic_Influence_prediction/Triplet_Network.py", line 156, in <module>
+    main()
+  File "/Users/traopia/Documents/GitHub/Artistic_Influence_prediction/Triplet_Network.py", line 152, in main
+    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, 'TripletResNet_features')
+  File "/Users/traopia/Documents/GitHub/Artistic_Influence_prediction/Triplet_Network.py", line 90, in train
+    print(f"Epoch [{epoch + 1}/{10}], Step [{i + 1}/{len(train_loader)}],Train Loss: {loss}, Train Accuracy: {accuracy}%")
+                                                                                      ^^^^
+UnboundLocalError: cannot access local variable 'loss' where it is not associated with a value
