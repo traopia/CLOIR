@@ -1,0 +1,194 @@
+2024-03-13 16:58:10,357 INFO    StreamThr :68337 [internal.py:wandb_internal():86] W&B internal server running at pid: 68337, started at: 2024-03-13 16:58:10.355925
+2024-03-13 16:58:10,358 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: status
+2024-03-13 16:58:10,361 INFO    WriterThread:68337 [datastore.py:open_for_write():87] open: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/run-aab1pvk4.wandb
+2024-03-13 16:58:10,362 DEBUG   SenderThread:68337 [sender.py:send():378] send: header
+2024-03-13 16:58:10,378 DEBUG   SenderThread:68337 [sender.py:send():378] send: run
+2024-03-13 16:58:10,783 INFO    SenderThread:68337 [dir_watcher.py:__init__():211] watching files in: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files
+2024-03-13 16:58:10,783 INFO    SenderThread:68337 [sender.py:_start_run_threads():1099] run started: aab1pvk4 with start time 1710345490.356203
+2024-03-13 16:58:10,795 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: check_version
+2024-03-13 16:58:10,795 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: check_version
+2024-03-13 16:58:10,911 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: run_start
+2024-03-13 16:58:10,921 DEBUG   HandlerThread:68337 [system_info.py:__init__():26] System info init
+2024-03-13 16:58:10,921 DEBUG   HandlerThread:68337 [system_info.py:__init__():41] System info init done
+2024-03-13 16:58:10,921 INFO    HandlerThread:68337 [system_monitor.py:start():194] Starting system monitor
+2024-03-13 16:58:10,921 INFO    SystemMonitor:68337 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-03-13 16:58:10,921 INFO    HandlerThread:68337 [system_monitor.py:probe():214] Collecting system info
+2024-03-13 16:58:10,922 DEBUG   HandlerThread:68337 [system_info.py:probe():150] Probing system
+2024-03-13 16:58:10,922 INFO    SystemMonitor:68337 [interfaces.py:start():190] Started cpu monitoring
+2024-03-13 16:58:10,922 INFO    SystemMonitor:68337 [interfaces.py:start():190] Started disk monitoring
+2024-03-13 16:58:10,926 INFO    SystemMonitor:68337 [interfaces.py:start():190] Started gpuapple monitoring
+2024-03-13 16:58:10,928 INFO    SystemMonitor:68337 [interfaces.py:start():190] Started memory monitoring
+2024-03-13 16:58:10,928 INFO    SystemMonitor:68337 [interfaces.py:start():190] Started network monitoring
+2024-03-13 16:58:10,932 DEBUG   HandlerThread:68337 [system_info.py:_probe_git():135] Probing git
+2024-03-13 16:58:10,947 DEBUG   HandlerThread:68337 [system_info.py:_probe_git():143] Probing git done
+2024-03-13 16:58:10,947 DEBUG   HandlerThread:68337 [system_info.py:probe():198] Probing system done
+2024-03-13 16:58:10,947 DEBUG   HandlerThread:68337 [system_monitor.py:probe():223] {'os': 'macOS-14.2.1-arm64-arm-64bit', 'python': '3.11.7', 'heartbeatAt': '2024-03-13T15:58:10.922326', 'startedAt': '2024-03-13T15:58:10.347844', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/Users/traopia/Documents/GitHub/Artistic_Influence_prediction/Triplet_Network.py', 'codePathLocal': 'Triplet_Network.py', 'codePath': 'Triplet_Network.py', 'git': {'remote': 'https://github.com/traopia/Artistic_Influence_prediction.git', 'commit': 'cbf9d8fef915362d62ce0e6bbb26f48273c1b47e'}, 'email': 'terryliberatore@gmail.com', 'root': '/Users/traopia/Documents/GitHub/Artistic_Influence_prediction', 'host': 'wcw-staff-145-109-83-61.wireless.uva.nl', 'username': 'traopia', 'executable': '/Users/traopia/miniconda3/envs/artsagenet_new/bin/python', 'cpu_count': 10, 'cpu_count_logical': 10, 'disk': {'/': {'total': 926.3517189025879, 'used': 265.8738784790039}}, 'gpuapple': {'type': 'arm', 'vendor': 'Apple'}, 'memory': {'total': 32.0}}
+2024-03-13 16:58:10,947 INFO    HandlerThread:68337 [system_monitor.py:probe():224] Finished collecting system info
+2024-03-13 16:58:10,947 INFO    HandlerThread:68337 [system_monitor.py:probe():227] Publishing system info
+2024-03-13 16:58:10,947 DEBUG   HandlerThread:68337 [system_info.py:_save_conda():207] Saving list of conda packages installed into the current environment
+2024-03-13 16:58:11,789 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/conda-environment.yaml
+2024-03-13 16:58:12,646 DEBUG   HandlerThread:68337 [system_info.py:_save_conda():219] Saving conda packages done
+2024-03-13 16:58:12,647 INFO    HandlerThread:68337 [system_monitor.py:probe():229] Finished publishing system info
+2024-03-13 16:58:12,648 DEBUG   SenderThread:68337 [sender.py:send():378] send: files
+2024-03-13 16:58:12,648 INFO    SenderThread:68337 [sender.py:_save_file():1365] saving file wandb-metadata.json with policy now
+2024-03-13 16:58:12,703 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: python_packages
+2024-03-13 16:58:12,703 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: stop_status
+2024-03-13 16:58:12,703 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: python_packages
+2024-03-13 16:58:12,703 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: stop_status
+2024-03-13 16:58:12,704 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-13 16:58:12,793 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_modified():288] file/dir modified: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/conda-environment.yaml
+2024-03-13 16:58:12,794 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/requirements.txt
+2024-03-13 16:58:12,794 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/wandb-metadata.json
+2024-03-13 16:58:12,926 DEBUG   SenderThread:68337 [sender.py:send():378] send: telemetry
+2024-03-13 16:58:12,926 DEBUG   SenderThread:68337 [sender.py:send():378] send: telemetry
+2024-03-13 16:58:13,026 DEBUG   SenderThread:68337 [sender.py:send():378] send: telemetry
+2024-03-13 16:58:13,126 INFO    wandb-upload_0:68337 [upload_job.py:push():131] Uploaded file /var/folders/n8/2b8brq5s3_j5bgbrqnhdxsd40000gn/T/tmp3epkq05kwandb/55jgjz8q-wandb-metadata.json
+2024-03-13 16:58:13,300 DEBUG   SenderThread:68337 [sender.py:send():378] send: exit
+2024-03-13 16:58:13,300 INFO    SenderThread:68337 [sender.py:send_exit():585] handling exit code: 1
+2024-03-13 16:58:13,300 INFO    SenderThread:68337 [sender.py:send_exit():587] handling runtime: 2
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:send_exit():593] send defer
+2024-03-13 16:58:13,301 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,301 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 0
+2024-03-13 16:58:13,301 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 0
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 1
+2024-03-13 16:58:13,301 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,301 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 1
+2024-03-13 16:58:13,301 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 1
+2024-03-13 16:58:13,301 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 2
+2024-03-13 16:58:13,301 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,301 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 2
+2024-03-13 16:58:13,301 INFO    HandlerThread:68337 [system_monitor.py:finish():203] Stopping system monitor
+2024-03-13 16:58:13,302 DEBUG   SystemMonitor:68337 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-03-13 16:58:13,302 DEBUG   SystemMonitor:68337 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2024-03-13 16:58:13,302 DEBUG   SystemMonitor:68337 [system_monitor.py:_start():183] Publishing last batch of metrics
+2024-03-13 16:58:13,302 INFO    HandlerThread:68337 [interfaces.py:finish():202] Joined cpu monitor
+2024-03-13 16:58:13,302 INFO    HandlerThread:68337 [interfaces.py:finish():202] Joined disk monitor
+2024-03-13 16:58:13,302 INFO    HandlerThread:68337 [interfaces.py:finish():202] Joined gpuapple monitor
+2024-03-13 16:58:13,302 INFO    HandlerThread:68337 [interfaces.py:finish():202] Joined memory monitor
+2024-03-13 16:58:13,303 INFO    HandlerThread:68337 [interfaces.py:finish():202] Joined network monitor
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 2
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 3
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send():378] send: telemetry
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send():378] send: stats
+2024-03-13 16:58:13,303 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,303 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 3
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 3
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 4
+2024-03-13 16:58:13,303 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,303 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 4
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 4
+2024-03-13 16:58:13,303 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 5
+2024-03-13 16:58:13,303 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,303 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 5
+2024-03-13 16:58:13,303 DEBUG   SenderThread:68337 [sender.py:send():378] send: summary
+2024-03-13 16:58:13,304 INFO    SenderThread:68337 [sender.py:_save_file():1365] saving file wandb-summary.json with policy end
+2024-03-13 16:58:13,304 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,304 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 5
+2024-03-13 16:58:13,304 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 6
+2024-03-13 16:58:13,304 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,304 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 6
+2024-03-13 16:58:13,304 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,304 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 6
+2024-03-13 16:58:13,305 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: status_report
+2024-03-13 16:58:13,466 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 7
+2024-03-13 16:58:13,466 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:13,466 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 7
+2024-03-13 16:58:13,467 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:13,467 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 7
+2024-03-13 16:58:13,800 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_modified():288] file/dir modified: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/config.yaml
+2024-03-13 16:58:13,801 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/output.log
+2024-03-13 16:58:13,801 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/wandb-summary.json
+2024-03-13 16:58:14,301 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-13 16:58:15,329 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 8
+2024-03-13 16:58:15,329 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: poll_exit
+2024-03-13 16:58:15,329 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:15,329 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 8
+2024-03-13 16:58:15,330 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:15,330 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 8
+2024-03-13 16:58:15,330 INFO    SenderThread:68337 [job_builder.py:build():298] Attempting to build job artifact
+2024-03-13 16:58:15,330 INFO    SenderThread:68337 [job_builder.py:_get_source_type():428] is repo sourced job
+2024-03-13 16:58:15,346 INFO    SenderThread:68337 [job_builder.py:build():404] adding wandb-job metadata file
+2024-03-13 16:58:15,348 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 9
+2024-03-13 16:58:15,348 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:15,348 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 9
+2024-03-13 16:58:15,348 DEBUG   SenderThread:68337 [sender.py:send():378] send: artifact
+2024-03-13 16:58:15,805 INFO    Thread-12 :68337 [dir_watcher.py:_on_file_modified():288] file/dir modified: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/output.log
+2024-03-13 16:58:16,268 INFO    wandb-upload_1:68337 [upload_job.py:push():86] Skipped uploading /Users/traopia/Library/Application Support/wandb/artifacts/staging/tmpl8_3mtzh
+2024-03-13 16:58:16,311 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-13 16:58:16,492 INFO    wandb-upload_0:68337 [upload_job.py:push():89] Uploaded file /Users/traopia/Library/Application Support/wandb/artifacts/staging/tmp1a0d_38q
+2024-03-13 16:58:17,495 INFO    SenderThread:68337 [sender.py:send_artifact():1443] sent artifact job-https___github.com_traopia_Artistic_Influence_prediction.git_Triplet_Network.py - {'id': 'QXJ0aWZhY3Q6NzU0NTUxNDM1', 'state': 'PENDING', 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjE0ODQyMzIwOA==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6NzU0NTQwNTU0', 'versionIndex': 1}}}
+2024-03-13 16:58:17,495 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:17,495 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 9
+2024-03-13 16:58:17,496 INFO    SenderThread:68337 [dir_watcher.py:finish():358] shutting down directory watcher
+2024-03-13 16:58:17,812 INFO    SenderThread:68337 [dir_watcher.py:finish():388] scan: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files
+2024-03-13 16:58:17,812 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/requirements.txt requirements.txt
+2024-03-13 16:58:17,812 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/output.log output.log
+2024-03-13 16:58:17,813 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/config.yaml config.yaml
+2024-03-13 16:58:17,814 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/wandb-summary.json wandb-summary.json
+2024-03-13 16:58:17,814 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/conda-environment.yaml conda-environment.yaml
+2024-03-13 16:58:17,815 INFO    SenderThread:68337 [dir_watcher.py:finish():402] scan save: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/wandb-metadata.json wandb-metadata.json
+2024-03-13 16:58:17,815 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 10
+2024-03-13 16:58:17,815 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: poll_exit
+2024-03-13 16:58:17,815 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:17,815 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 10
+2024-03-13 16:58:17,817 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:17,818 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 10
+2024-03-13 16:58:17,818 INFO    SenderThread:68337 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-13 16:58:18,162 INFO    wandb-upload_2:68337 [upload_job.py:push():131] Uploaded file /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/config.yaml
+2024-03-13 16:58:18,188 INFO    wandb-upload_3:68337 [upload_job.py:push():131] Uploaded file /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/wandb-summary.json
+2024-03-13 16:58:18,195 INFO    wandb-upload_1:68337 [upload_job.py:push():131] Uploaded file /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/requirements.txt
+2024-03-13 16:58:18,199 INFO    wandb-upload_0:68337 [upload_job.py:push():131] Uploaded file /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/output.log
+2024-03-13 16:58:18,220 INFO    wandb-upload_4:68337 [upload_job.py:push():131] Uploaded file /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/files/conda-environment.yaml
+2024-03-13 16:58:18,321 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-13 16:58:18,321 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: poll_exit
+2024-03-13 16:58:18,425 INFO    Thread-11 (_thread_body):68337 [sender.py:transition_state():613] send defer: 11
+2024-03-13 16:58:18,425 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:18,425 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 11
+2024-03-13 16:58:18,425 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:18,425 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 11
+2024-03-13 16:58:18,425 INFO    SenderThread:68337 [file_pusher.py:join():178] waiting for file pusher
+2024-03-13 16:58:18,426 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 12
+2024-03-13 16:58:18,426 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:18,426 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 12
+2024-03-13 16:58:18,426 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:18,426 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 12
+2024-03-13 16:58:18,426 INFO    SenderThread:68337 [file_stream.py:finish():595] file stream finish called
+2024-03-13 16:58:18,608 INFO    SenderThread:68337 [file_stream.py:finish():599] file stream finish is done
+2024-03-13 16:58:18,608 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 13
+2024-03-13 16:58:18,609 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:18,609 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 13
+2024-03-13 16:58:18,609 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:18,609 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 13
+2024-03-13 16:58:18,609 INFO    SenderThread:68337 [sender.py:transition_state():613] send defer: 14
+2024-03-13 16:58:18,609 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: defer
+2024-03-13 16:58:18,609 INFO    HandlerThread:68337 [handler.py:handle_request_defer():172] handle defer: 14
+2024-03-13 16:58:18,609 DEBUG   SenderThread:68337 [sender.py:send():378] send: final
+2024-03-13 16:58:18,609 DEBUG   SenderThread:68337 [sender.py:send():378] send: footer
+2024-03-13 16:58:18,609 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: defer
+2024-03-13 16:58:18,609 INFO    SenderThread:68337 [sender.py:send_request_defer():609] handle sender defer: 14
+2024-03-13 16:58:18,609 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: poll_exit
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: server_info
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: get_summary
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: sampled_history
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: internal_messages
+2024-03-13 16:58:18,610 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: poll_exit
+2024-03-13 16:58:18,610 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: poll_exit
+2024-03-13 16:58:18,610 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: server_info
+2024-03-13 16:58:18,610 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: job_info
+2024-03-13 16:58:18,736 DEBUG   SenderThread:68337 [sender.py:send_request():405] send_request: job_info
+2024-03-13 16:58:18,736 INFO    MainThread:68337 [wandb_run.py:_footer_history_summary_info():3851] rendering history
+2024-03-13 16:58:18,736 INFO    MainThread:68337 [wandb_run.py:_footer_history_summary_info():3883] rendering summary
+2024-03-13 16:58:18,736 INFO    MainThread:68337 [wandb_run.py:_footer_sync_info():3810] logging synced files
+2024-03-13 16:58:18,736 DEBUG   HandlerThread:68337 [handler.py:handle_request():146] handle_request: shutdown
+2024-03-13 16:58:18,736 INFO    HandlerThread:68337 [handler.py:finish():869] shutting down handler
+2024-03-13 16:58:19,611 INFO    WriterThread:68337 [datastore.py:close():296] close: /Users/traopia/Documents/GitHub/Artistic_Influence_prediction/wandb/run-20240313_165810-aab1pvk4/run-aab1pvk4.wandb
+2024-03-13 16:58:19,738 INFO    SenderThread:68337 [sender.py:finish():1521] shutting down sender
+2024-03-13 16:58:19,738 INFO    SenderThread:68337 [file_pusher.py:finish():172] shutting down file pusher
+2024-03-13 16:58:19,739 INFO    SenderThread:68337 [file_pusher.py:join():178] waiting for file pusher

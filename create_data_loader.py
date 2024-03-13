@@ -17,7 +17,7 @@ class TripletLossDataset_features(Dataset):
         self.num_examples = num_examples
         self.positive_examples = self.min_val()
         self.filtered_indices = self.filter_indices()
-        
+        self.dimension = self.df[self.feature][0].shape[0]       
         print('Number of observations after filtering:',len(self.filtered_indices))
    
 
