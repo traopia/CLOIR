@@ -130,15 +130,15 @@ def main():
     batch_size = wandb.config.batch_size
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 
-    dataset_train = torch.load('DATA/Dataset_toload/train_dataset_image_features.pt')
-    dataset_val = torch.load('DATA/Dataset_toload/val_dataset_image_features.pt')
+    dataset_train = torch.load('DATA/Dataset_toload/train_dataset_random.pt')
+    dataset_val = torch.load('DATA/Dataset_toload/val_dataset_random.pt')
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
 
     criterion = nn.TripletMarginLoss(margin=1.0, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, 'TripletResNet_features')
+    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, 'TripletResNet_random_5000')
 
 if __name__ == "__main__":
     start_time = time.time() 

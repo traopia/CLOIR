@@ -77,14 +77,25 @@ class TripletLossDataset_features(Dataset):
         I = [index_list[i] for i in I]
         return I
 
-
-
+    def vector_similarity_search(self, query, index_list):
+        '''Search for similar vectors in the dataset using faiss library'''
+        k = self.num_examples+1
+        query_vector = torch.stack(self.df[self.feature].tolist())[query].reshape(1, -1)
+        xb = torch.stack(self.df[self.feature].tolist())[index_list]
+        d = xb.shape[1]
+        index = faiss.IndexFlatL2(d) 
+        index.add(xb)
+        D, I = index.search(query_vector, k)
+        I = list(I[0][1:]) 
+        I = [index_list[i] for i in I]
+        return I
+        
     def get_negative_examples(self,x, random_negative=True):
         '''Get negative examples
         random_negative: if True, return random negative examples
          else return negative examples based on similarity to the anchor'''
 
-        matching_examples = {example[1] for example in self.positive_examples if example[1] == x}
+        matching_examples = {example[1] for example in self.positive_examples if example[0] == x}
         remaining_indexes = list(set(self.filtered_indices) - matching_examples)
         if random_negative:
             return random.sample(remaining_indexes, min(self.num_examples, len(remaining_indexes)))
@@ -92,7 +103,7 @@ class TripletLossDataset_features(Dataset):
             return self.vector_similarity_search(x, remaining_indexes) #negative examples are similar to the anchor but not positive
   
 
-    def get_positive_examples(self,x,based_on_features=True):
+    def get_positive_examples(self,x,based_on_features=False):
         '''Get positive examples
         based_on_features: if True, return positive examples based on similarity to the anchor
          else return random positive examples'''
@@ -103,13 +114,13 @@ class TripletLossDataset_features(Dataset):
             positive_indexes = self.vector_similarity_search(x,matching_indexes)
             return positive_indexes
         else:
-            influencer_counts = Counter(self.df.loc[idx, 'artist_name'] for idx in matching_indexes)
-            sampled_indexes = []
-            for influencer, count in influencer_counts.items():
-                indexes = [idx for idx in matching_indexes if self.df.loc[idx, 'artist_name'] == influencer]
-                sampled_indexes.extend(random.choices(indexes, k=min(count, self.num_examples // len(influencer_counts))))
-            return sampled_indexes[:self.num_examples]
-            #return random.sample(matching_indexes, min(self.num_examples, len(matching_indexes)))
+            # influencer_counts = Counter(self.df.loc[idx, 'artist_name'] for idx in self.matching_indexes)
+            # sampled_indexes = []
+            # for influencer, count in influencer_counts.items():
+            #     indexes = [idx for idx in self.matching_indexes if self.df.loc[idx, 'artist_name'] == influencer]
+            #     sampled_indexes.extend(random.choices(indexes, k=min(count, self.num_examples // len(influencer_counts))))
+            # return sampled_indexes[:self.num_examples]
+            return random.sample(matching_indexes, min(self.num_examples, len(matching_indexes)))
     
     def __len__(self):
         return len(self.filtered_indices)
@@ -118,7 +129,8 @@ class TripletLossDataset_features(Dataset):
 
         index = self.filtered_indices[index]
         positive_indexes = self.get_positive_examples(index, based_on_features=True)
-        negative_indexes = self.get_negative_examples(index, random_negative=True)       
+        negative_indexes = self.get_negative_examples(index, random_negative=True)    
+
 
         img_anchor = self.df[self.feature][index].repeat(self.num_examples,1)
         img_pos = torch.stack([self.df[self.feature][i] for i in positive_indexes])
@@ -148,8 +160,8 @@ def main():
     if os.path.exists('DATA/Dataset_toload') == False:
         os.makedirs('DATA/Dataset_toload')
 
-    torch.save(tripleloss_dataset_train, 'DATA/Dataset_toload/train_dataset_image_features.pt')
-    torch.save(tripleloss_dataset_val, 'DATA/Dataset_toload/val_dataset_image_features.pt')
+    torch.save(tripleloss_dataset_train, 'DATA/Dataset_toload/train_dataset_random.pt')
+    torch.save(tripleloss_dataset_val, 'DATA/Dataset_toload/val_dataset_random.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
