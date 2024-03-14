@@ -8,6 +8,7 @@ import itertools
 from collections import Counter
 import os
 import time
+import faiss.contrib.torch_utils
 
 class TripletLossDataset_features(Dataset):
     def __init__(self, mode, df, num_examples,feature,device):
@@ -53,34 +54,29 @@ class TripletLossDataset_features(Dataset):
     
     def vector_similarity_search(self, query, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
-        k = self.num_examples
+        k = self.num_examples+1
         if index_list != None:
             xb = torch.stack(self.df[self.feature].tolist())[index_list]
         else:
             xb = torch.stack(self.df[self.feature].tolist())
         d = xb.shape[1]
-        if self.device == 'mps':
-            index = faiss.IndexFlatL2(d) 
-        else:
-            index = faiss.GpuIndexFlatL2(d)
-        index.add(xb)
+        # if self.device == 'mps':
+        #     index = faiss.IndexFlatL2(d) 
+        # else:
+        #     index = faiss.GpuIndexFlatL2(d)
+        quantizer = faiss.IndexFlatL2(d)
+        nlist = 100
+        index = faiss.IndexIVFFlat(quantizer, d, nlist)
+        if self.device == 'cuda':
+            index = faiss.index_cpu_to_all_gpus(index)
+        index.train(xb) if self.device == 'cuda' else index.train(xb.cpu().numpy())
+        index.add(xb) if self.device == 'cuda' else index.add(xb.cpu().numpy())
+
         D, I = index.search(xb[query].reshape(1,-1), k)  
         I = list(I[0][1:])   
         I = [index_list[i] for i in I]
         return I
-    
-    def vector_similarity_search(self, query, index_list):
-        '''Search for similar vectors in the dataset using faiss library'''
-        k = self.num_examples+1
-        query_vector = torch.stack(self.df[self.feature].tolist())[query].reshape(1, -1)
-        xb = torch.stack(self.df[self.feature].tolist())[index_list]
-        d = xb.shape[1]
-        index = faiss.IndexFlatL2(d) 
-        index.add(xb)
-        D, I = index.search(query_vector, k)
-        I = list(I[0][1:]) 
-        I = [index_list[i] for i in I]
-        return I
+
 
 
     def get_negative_examples(self,x, random_negative=True):
@@ -144,9 +140,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     df = pd.read_csv(dataset_path)
     feature = 'image_features'
-    df = df[:100]
+    df = df[:5000]
     
-    df.image_features = column_list_to_tensor(df,feature)
+    df[feature] = column_list_to_tensor(df,feature)
     tripleloss_dataset_train = TripletLossDataset_features(mode='train', df = df,num_examples = 10, feature=feature,device=device)
     tripleloss_dataset_val = TripletLossDataset_features(mode='val', df = df,num_examples = 10, feature=feature,device=device)
     if os.path.exists('DATA/Dataset_toload') == False:
