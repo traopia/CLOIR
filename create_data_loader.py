@@ -10,11 +10,12 @@ import os
 import time
 
 class TripletLossDataset_features(Dataset):
-    def __init__(self, mode, df, num_examples,feature):
+    def __init__(self, mode, df, num_examples,feature,device):
         self.df = df
         self.mode = mode
         self.feature = feature
         self.num_examples = num_examples
+        self.device = device
         self.positive_examples = self.min_val()
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df[self.feature][0].shape[0]       
@@ -58,7 +59,10 @@ class TripletLossDataset_features(Dataset):
         else:
             xb = torch.stack(self.df[self.feature].tolist())
         d = xb.shape[1]
-        index = faiss.IndexFlatL2(d) 
+        if self.device == 'mps':
+            index = faiss.IndexFlatL2(d) 
+        else:
+            index = faiss.GpuIndexFlatL2(d)
         index.add(xb)
         D, I = index.search(xb[query].reshape(1,-1), k)  
         I = list(I[0][1:])   
@@ -127,7 +131,6 @@ class TripletLossDataset_features(Dataset):
         # img_anchor = [self.df[self.feature][index] for i in range(self.num_examples)]
         # img_pos = [self.df[self.feature][i] for i in positive_indexes]
         # img_neg = [self.df[self.feature][i] for i in negative_indexes]
-
         return img_anchor, img_pos, img_neg
 
 
@@ -138,12 +141,14 @@ def column_list_to_tensor(df,feature):
 
 def main():
     dataset_path = 'DATA/Dataset/wikiart_full_combined.csv'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     df = pd.read_csv(dataset_path)
-    df = df[:1000]
     feature = 'image_features'
+    df = df[:100]
+    
     df.image_features = column_list_to_tensor(df,feature)
-    tripleloss_dataset_train = TripletLossDataset_features(mode='train', df = df,num_examples = 10, feature=feature)
-    tripleloss_dataset_val = TripletLossDataset_features(mode='val', df = df,num_examples = 10, feature=feature)
+    tripleloss_dataset_train = TripletLossDataset_features(mode='train', df = df,num_examples = 10, feature=feature,device=device)
+    tripleloss_dataset_val = TripletLossDataset_features(mode='val', df = df,num_examples = 10, feature=feature,device=device)
     if os.path.exists('DATA/Dataset_toload') == False:
         os.makedirs('DATA/Dataset_toload')
 
