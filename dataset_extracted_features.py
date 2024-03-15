@@ -3,48 +3,41 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 from PIL import Image
 import pandas as pd
-from triplet_network import clean
 import numpy as np
-
-import torch
-from torchvision import models, transforms
-from PIL import Image
-
-import torch
-from torchvision import models, transforms
-from PIL import Image
 from transformers import GPT2Tokenizer, GPT2Model
-
-import ast
-
-# Check if CUDA is available, otherwise use CPU
-
-
-# Load pre-trained ResNet-152
+import time 
+import pickle
+import os
 
 
 
-# Function to extract features from an image
+def clean(df):
+    df.dropna(subset=['influenced_by'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    unique_values = df['artist_name'].explode().unique()
+    df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
+    df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
+    df = df[df['influenced_by'].map(len) > 0]
+
+    return df
+
+
 def image_features(image_path,device):
+
     weights = models.ResNet34_Weights.DEFAULT
-    resnet152 = models.resnet34(weights=weights)
-
-    # Move model to the selected device
-    resnet152 = resnet152.to(device)
-
-    # Remove the final fully connected layer
-    resnet152 = torch.nn.Sequential(*(list(resnet152.children())[:-1]))
+    resnet34 = models.resnet34(weights=weights)
+    resnet34 = resnet34.to(device)
+    resnet34 = torch.nn.Sequential(*(list(resnet34.children())[:-1]))
 
     # Set model to evaluation mode
-    resnet152.eval()
-
+    resnet34.eval()
     # Define image preprocessing pipeline
     preprocess = transforms.Compose([
         transforms.Resize(256),
-        #transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
+
     full_path = 'wikiart/' + image_path
     image = Image.open(full_path)
     # Preprocess the image
@@ -55,118 +48,83 @@ def image_features(image_path,device):
     image_tensor = image_tensor.to(device)
     # Extract features
     with torch.no_grad():
-        features = resnet152(image_tensor)
+        features = resnet34(image_tensor)
     # Flatten the features
-    features = features.squeeze().cpu().numpy() 
+    features = features.squeeze().cpu()
+
     return features
 
-
-
-
-
-# Define function to get vector representation of a sentence
-def get_sentence_vector(sentence,device):
-    # Tokenize input text
-    device = 'mps' #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-    model = GPT2Model.from_pretrained('gpt2').to(device)
-
-    input_ids = tokenizer.encode(sentence, add_special_tokens=True, return_tensors='pt').to(device)
-    # Get model output
-    with torch.no_grad():
-        outputs = model(input_ids)
-        last_hidden_states = outputs.last_hidden_state
-    # Average the last hidden states to get sentence representation
-    sentence_vector = torch.mean(last_hidden_states, dim=1).squeeze().cpu().numpy()
-    print(sentence_vector.shape, sentence_vector.dtype)
-    # Convert to numpy array
-    return sentence_vector
+def get_image_features(df,device):
+    embeddings = []
+    for image_path in df['relative_path']:
+        embedding = image_features(image_path,device)
+        embeddings.append(embedding)
+    return embeddings
 
 def get_embedding(text, model, tokenizer, device):
     # Tokenize the text
     input_ids = tokenizer.encode(text, add_special_tokens=False, return_tensors='pt').to(device)
-
-    # Get model output
     with torch.no_grad():
         outputs = model(input_ids)
-        embedding = outputs.last_hidden_state.squeeze().mean(dim=0).cpu().numpy()
-
+        embedding = outputs.last_hidden_state.squeeze().mean(dim=0).cpu()
     return embedding
 
-def get_text_features(df,device):
+def get_text_features(df, device):
     # Load GPT-2 tokenizer and model
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2', do_basic_tokenize=False, do_lower_case=False)
     model = GPT2Model.from_pretrained('gpt2').to(device)
+    df.loc[:, 'title']  = df.apply(lambda x: x.relative_path.split('/')[-1].split('.')[0].split('_')[1], axis=1)
+    df.loc[:, 'tags'] = df['tags'].fillna(' ')
+    # Concatenate text from different columns
+    df.loc[:,'concatenated_text'] = df['artist_attribution'].astype(str) + ' ' + df['style_classification'].astype(str)  + ' '  + df['title'].astype(str) + ' ' + df['tags'].astype(str) + ' ' + df['timeframe_estimation'].astype(str) + ' ' + df['artist_school'].astype(str) 
 
-
-    # Process each column separately and get embeddings
+    # Get embeddings for the concatenated text
     embeddings = []
-    for col in ['style_classification','tags', 'artist_name','artist_school','timeframe_estimation','title']:#'artist_name', 'artist_school', 'style_classification',
-        column_embeddings = []
-        for text in df[col]:
-            embedding = get_embedding(text, model, tokenizer,device)
-            column_embeddings.append(embedding)
-        embeddings.append(column_embeddings)
+    for text in df['concatenated_text']:
+        embedding = get_embedding(text, model, tokenizer, device)
+        embeddings.append(embedding)
 
-    # Average the embeddings
-    average_embeddings = [sum(x) / len(x) for x in zip(*embeddings)]
-    df['text_features'] = average_embeddings
-    return df
-
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import numpy as np
+    return embeddings
 
 
-def pca_transform(df,feature,n_components=3):
-    # Standardize the data
-    features = df[feature].tolist()
-    features = [np.array(x) for x in features]
-    scaler = StandardScaler()
-    features = scaler.fit_transform(features)
-
-    # Apply PCA
-    pca = PCA(n_components=n_components)
-    principalComponents = pca.fit_transform(features)
-    df['pca_features'] = principalComponents.tolist()
-    #principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2'])
-    return df
 
 def preprocess_data(df,device):
-    df['tags'] = df['tags'].fillna(' ')
-    df['title'] = df.apply(lambda x: x.relative_path.split('/')[-1].split('.')[0].split('_')[1], axis=1)
-    df = get_text_features(df,device)
-    if 'extracted_features' not in df.columns:
+    '''Preprocess the data and save it as a pickle file'''
 
-        df['image_features'] = df.apply(lambda x: image_features(x.relative_path,device), axis=1)
-    else:
-        df['image_features'] = df['extracted_features']
-        df.drop(columns=['extracted_features'], inplace=True)
-    df.text_features = df.text_features.apply(lambda x: torch.tensor(x))
-    df.image_features = df.image_features.apply(lambda x: ast.literal_eval(x))
-    df.image_features = df.image_features.apply(lambda x: torch.tensor(x))
+    df['text_features'] = get_text_features(df,device)
+    df['image_features'] = get_image_features(df,device)
     df['image_text_features'] = df.apply(lambda x: torch.cat([x['image_features'], x['text_features']]), axis=1)
-    df['image_text_features'] = df['image_text_features'].apply(lambda x: x.tolist())
-    df['image_features'] = df['image_features'].apply(lambda x: x.tolist())
-    df['text_features'] = df['text_features'].apply(lambda x: x.tolist())
-    df = pca_transform(df,'image_text_features',n_components=3)
-    df.to_csv('DATA/Dataset/wikiart_1000_combined.csv', index=False)
+
+    df.to_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
+
     return df
 
+
+def get_dictionaries(df):
+    dict_influenced_by = df.groupby('artist_name')['influenced_by'].first().to_dict()
+    artist_to_paintings = {}
+    for index, row in df.iterrows():
+        artist = row['artist_name']
+        artist_to_paintings.setdefault(artist, []).append(index)
+    artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
+    if os.path.exists('DATA/dict') == False:
+        os.makedirs('DATA/dict')
+    file_path = 'DATA/dict/artist_to_influencer_paintings.pkl'
+    with open(file_path, 'wb') as file:
+        pickle.dump(artist_to_influencer_paintings, file)
+    return artist_to_influencer_paintings
+
 def main():
-    device = 'mps' #torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # df = pd.read_csv('DATA/Dataset/wikiart_full_influence_filtered.csv')
-    # df = clean(df)
-    df = pd.read_csv('DATA/Dataset/wikiart_full_features_34.csv')
-    df = df[:1000]
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_influence_filtered.csv')
+    df = clean(df)
+    get_dictionaries(df)
     preprocess_data(df,device)
 
-
-    
-
-
-    # df['extracted_features'] = df['relative_path'].apply(lambda x: extract_features(x,device).tolist())
-    # df.to_csv('DATA/Dataset/wikiart_full_resnet34.csv', index=False)
 if __name__ == '__main__':
+    start_time = time.time() 
     main()
+    end_time = time.time()
+    elapsed_time = end_time - start_time  
+    print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))
 
