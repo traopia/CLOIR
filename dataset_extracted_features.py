@@ -18,7 +18,7 @@ def clean(df):
     df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].map(len) > 0]
-
+    df.reset_index(drop=True, inplace=True)
     return df
 
 
