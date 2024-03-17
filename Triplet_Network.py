@@ -9,22 +9,11 @@ import wandb
 from torch.utils.data import DataLoader, Dataset
 from create_data_loader import TripletLossDataset_features
 import time 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="Triplet_Network_Wikiart_predict_Influence",
-    
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": 0.0005,
-    "architecture": "Triplet Network",
-    "dataset": "Wikiart 1000",
-    "preprocessing": "ResNet34",
-    "batch_size": 32,
-    "epochs": 10,
-    }
-)
+
 
 def accuracy_triplet(anchor_output, positive_output, negative_output):
     distance_positive = F.pairwise_distance(anchor_output, positive_output)
@@ -129,20 +118,35 @@ def main():
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-
-    dataset_train = torch.load('DATA/Dataset_toload/train_dataset_random.pt')
-    dataset_val = torch.load('DATA/Dataset_toload/val_dataset_random.pt')
+    feature = 'image_features'
+    dataset_train = torch.load(f'DATA/Dataset_toload/train_dataset_{feature}_all.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/val_dataset_{feature}_all.pt')
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
 
     criterion = nn.TripletMarginLoss(margin=1.0, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, 'TripletResNet_random_5000')
+    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, f'TripletResNet_{feature}')
 
 if __name__ == "__main__":
     start_time = time.time() 
+    wandb.init(
+    # set the wandb project where this run will be logged
+    project="Triplet_Network_Wikiart_predict_Influence",
+    
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": 0.0005,
+    "architecture": "Triplet Network",
+    "dataset": "Wikiart 1000",
+    "preprocessing": "ResNet34",
+    "batch_size": 32,
+    "epochs": 10,
+    }
+    )
     main()
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))
+    wandb.finish()
