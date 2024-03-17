@@ -12,11 +12,12 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 class TripletLossDataset_features(Dataset):
-    def __init__(self, mode, df, num_examples,feature,device):
+    def __init__(self, mode, df, num_examples,feature,device, similarity_based = True):
         self.mode = mode
         self.feature = feature
         self.num_examples = num_examples
         self.device = device
+        self.similarity_based = similarity_based
         self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(df)
         self.filtered_indices = self.filter_indices(df)
         self.df = df #df[df.index.isin([value for sublist in self.dict_influence_indexes.values() for value in sublist])]#df[df.index.isin(self.filtered_indices)].reset_index(drop=True)
@@ -113,8 +114,11 @@ class TripletLossDataset_features(Dataset):
             if artist in self.dict_influence_indexes:
                 index_list = self.dict_influence_indexes[artist]
                 index_list = [i for i in index_list if i < len(self.df)]
-
-            df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
+            if self.similarity_based == True:
+                self.df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
+            else:
+                for q in query:
+                    self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
         return df[f'pos_ex_{self.feature}']
 
     
@@ -148,16 +152,17 @@ class TripletLossDataset_features(Dataset):
 def main():
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
     unique_values = df['artist_name'].explode().unique()
-    # df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
     print('Number of observations before filtering:',len(df))
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     feature = 'image_features'
-    tripleloss_dataset_train = TripletLossDataset_features('train', df, 10, feature, device)
-    val_dataset = TripletLossDataset_features('val', df, 10, feature, device)
-    torch.save(tripleloss_dataset_train, f'DATA/Dataset_toload/train_dataset_{feature}_all.pt')
-    torch.save(val_dataset, f'DATA/Dataset_toload/val_dataset_{feature}_all.pt')
+    based_on_similarity = False # if True, use faiss library to find similar vectors
+    how_feature = 'faiss' if based_on_similarity else 'random'
+    train_dataset = TripletLossDataset_features('train', df, 10, feature, device, based_on_similarity)
+    val_dataset = TripletLossDataset_features('val', df, 10, feature, device, based_on_similarity)
+    torch.save(train_dataset, f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature}.pt')
+    torch.save(val_dataset, f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
