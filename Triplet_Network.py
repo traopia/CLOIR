@@ -24,7 +24,7 @@ def accuracy_triplet(anchor_output, positive_output, negative_output):
 class TripletResNet_features(nn.Module):
     def __init__(self, input_size):
         super(TripletResNet_features, self).__init__()
-       
+
         hidden_size_1 = input_size//2
         hidden_size_2 = input_size//4
         self.model = nn.Sequential(
@@ -113,14 +113,15 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
 
     
 
-def main():    
+def main(feature, based_on_similarity):    
     epochs = wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    feature = 'image_features'
-    dataset_train = torch.load(f'DATA/Dataset_toload/train_dataset_{feature}_all.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/val_dataset_{feature}_all.pt')
+    how_feature = 'faiss' if based_on_similarity else 'random'
+    dataset_train = torch.load(f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature}.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature}.pt')
+
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
@@ -134,7 +135,6 @@ if __name__ == "__main__":
     wandb.init(
     # set the wandb project where this run will be logged
     project="Triplet_Network_Wikiart_predict_Influence",
-    
     # track hyperparameters and run metadata
     config={
     "learning_rate": 0.0005,
@@ -143,9 +143,11 @@ if __name__ == "__main__":
     "preprocessing": "ResNet34",
     "batch_size": 32,
     "epochs": 10,
+    "feature": "image_features",
+    "based_on_similarity": False
     }
     )
-    main()
+    main(wandb.config.feature, wandb.config.based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))
