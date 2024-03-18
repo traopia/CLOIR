@@ -12,17 +12,19 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 
 class TripletLossDataset_features(Dataset):
-    def __init__(self, mode, df, num_examples,feature,device, similarity_based = True):
+    def __init__(self, mode, df, num_examples,feature,device, positive_similarity_based, negative_similarity_based):
         self.mode = mode
         self.feature = feature
         self.num_examples = num_examples
         self.device = device
-        self.similarity_based = similarity_based
+        self.positive_similarity_based = positive_similarity_based
+        self.negative_similarity_based = negative_similarity_based
         self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(df)
         self.filtered_indices = self.filter_indices(df)
         self.df = df #df[df.index.isin([value for sublist in self.dict_influence_indexes.values() for value in sublist])]#df[df.index.isin(self.filtered_indices)].reset_index(drop=True)
         self.dimension = self.df[self.feature][0].shape[0]  
-        self.positive_examples = self.positive_examples_group(self.df)     
+        self.positive_examples = self.positive_examples_group(self.df)   
+        self.negative_examples = self.get_negative_examples(self.df)  
         print('Number of observations after filtering:',len(self.filtered_indices))
         print('length of df:',len(self.df))
 
@@ -69,6 +71,12 @@ class TripletLossDataset_features(Dataset):
 
         d = xb.shape[1]
         index = faiss.IndexFlatL2(d)
+        if xb.shape[0] < 1000:
+            index = faiss.IndexFlatL2(d)
+        else:
+            nlist = 10  
+            quantizer = faiss.IndexFlatL2(d)
+            index = faiss.IndexIVFFlat(quantizer, d, nlist)
         
         if self.device == 'cuda':
             index = faiss.index_cpu_to_all_gpus(index)
@@ -81,25 +89,41 @@ class TripletLossDataset_features(Dataset):
             D, I = index.search(query_vector.reshape(1,-1), k)  
             I = list(I[0][1:])   
             I = [index_list[i] for i in I]
-            #df[f'pos_ex_{self.feature}'].iloc[query] = I
-            df.at[query,f'pos_ex_{self.feature}'] = I
+            #df.at[query,f'pos_ex_{self.feature}'] = I
             results.append(I)
             
-            
-        return df[f'pos_ex_{self.feature}']
+        return results #df[f'pos_ex_{self.feature}']
 
 
 
         
-    def get_negative_examples(self,x ):
+    def get_negative_examples(self,df):
         '''Get negative examples
         random_negative: if True, return random negative examples
          else return negative examples based on similarity to the anchor'''
 
-        if self.df.loc[x,'artist_name'] in self.dict_influence_indexes:
-            matching_examples = self.dict_influence_indexes[self.df.loc[x,'artist_name']]
-            remaining_indexes = list(set(list(self.df.index)) - set(matching_examples))
-            return random.sample(remaining_indexes, min(self.num_examples, len(remaining_indexes)))
+        self.df[f'neg_ex_{self.feature}'] = [None]*len(self.df)
+        grouped = df.groupby('artist_name')
+        for artist, group in grouped:
+            query = list(group.index)
+            if artist in self.dict_influence_indexes:
+                index_list = self.dict_influence_indexes[artist]
+                remaining_index_list = list(set(list(self.df.index)) - set(index_list))
+            if self.negative_similarity_based:
+                results = self.vector_similarity_search_group(query, remaining_index_list,df)
+                for i,q in enumerate(query):
+                    self.df.at[q,f'neg_ex_{self.feature}'] = results[i]
+            else:
+                for q in query:
+                    self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(remaining_index_list, self.num_examples)
+                
+        return df[f'neg_ex_{self.feature}']
+
+                
+
+
+            
+
 
 
   
@@ -114,8 +138,11 @@ class TripletLossDataset_features(Dataset):
             if artist in self.dict_influence_indexes:
                 index_list = self.dict_influence_indexes[artist]
                 index_list = [i for i in index_list if i < len(self.df)]
-            if self.similarity_based == True:
-                self.df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
+            if self.positive_similarity_based == True:
+                results = self.vector_similarity_search_group(query, index_list,df)
+                for i,q in enumerate(query):
+                    self.df.at[q,f'pos_ex_{self.feature}'] = results[i]
+                #self.df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
             else:
                 for q in query:
                     self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
@@ -126,27 +153,17 @@ class TripletLossDataset_features(Dataset):
         return len(self.filtered_indices)
 
     def __getitem__(self, index):
-        #if self.df.loc[index,'artist_name'] in self.dict_influence_indexes.keys():
-            index = self.filtered_indices[index]
-            
-            positive_indexes = self.positive_examples.iloc[index]
-            negative_indexes = self.get_negative_examples(index)
 
-            
-            #positive_indexes = self.positive_examples.iloc[index]
-            #negative_indexes = self.get_negative_examples(index)  
+        index = self.filtered_indices[index]
+        
+        positive_indexes = self.positive_examples.iloc[index]
+        negative_indexes = self.negative_examples.iloc[index]
 
+        img_anchor = self.df[self.feature][index].repeat(self.num_examples,1)
+        img_pos = torch.stack([self.df[self.feature][i] for i in positive_indexes])
+        img_neg = torch.stack([self.df[self.feature][i] for i in negative_indexes])
 
-            img_anchor = self.df[self.feature][index].repeat(self.num_examples,1)
-            img_pos = torch.stack([self.df[self.feature][i] for i in positive_indexes])
-            img_neg = torch.stack([self.df[self.feature][i] for i in negative_indexes])
-            # img_anchor = [self.df[self.feature][index] for i in range(self.num_examples)]
-            # img_pos = [self.df[self.feature][i] for i in positive_indexes]
-            # img_neg = [self.df[self.feature][i] for i in negative_indexes]
-            return img_anchor, img_pos, img_neg
-        #else:
-        #    print(index, self.df.loc[index,'artist_name'])
-        #    pass
+        return img_anchor, img_pos, img_neg
 
 
 def main():
@@ -157,12 +174,14 @@ def main():
     print('Number of observations before filtering:',len(df))
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     feature = 'image_features'
-    based_on_similarity = False # if True, use faiss library to find similar vectors
-    how_feature = 'faiss' if based_on_similarity else 'random'
-    train_dataset = TripletLossDataset_features('train', df, 10, feature, device, based_on_similarity)
-    val_dataset = TripletLossDataset_features('val', df, 10, feature, device, based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature}.pt')
-    torch.save(val_dataset, f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature}.pt')
+    positive_based_on_similarity = False # if True, use faiss library to find similar vectors
+    negative_based_on_similarity = True # if True, use faiss library to find similar vectors
+    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+    train_dataset = TripletLossDataset_features('train', df, 10, feature, device, positive_based_on_similarity, negative_based_on_similarity)
+    val_dataset = TripletLossDataset_features('val', df, 10, feature, device, positive_based_on_similarity, negative_based_on_similarity)
+    torch.save(train_dataset, f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}.pt')
+    torch.save(val_dataset, f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
