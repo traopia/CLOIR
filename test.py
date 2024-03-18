@@ -3,20 +3,16 @@ import numpy as np
 import time
 #import faiss.contrib.torch_utils
 import torch
-
-# Example tensors (replace with your actual tensors)
-device = torch.device("cuda" if torch.cuda.is_available() else "mps")
 import pandas as pd 
-df = pd.read_csv('DATA/Dataset/wikiart_full_combined.csv')
-from create_data_loader import column_list_to_tensor
+
+device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+
+df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
 feature = 'image_features'
-df[feature] = column_list_to_tensor(df,feature)
-#df[feature] = df[feature].apply(lambda x: torch.round(x * 100) / 100)
 tensors = torch.stack(df[feature].tolist()).to(device)
 tensor_dim = tensors.shape[1]
-print(tensor_dim)
 nb_tensors = tensors.shape[0]
-k = 10
+k = 11
 
 query_tensors = tensors.cpu().numpy()
 
@@ -46,7 +42,8 @@ end_time = time.time()
 print("Standard search time: {:.4f} seconds".format(end_time - start_time))
 
 df['index_vector_similarity'] = I.tolist()
-df.to_csv('DATA/Dataset/wikiart_full_combined_index.csv', index=False)
+print(df['index_vector_similarity'])
+#df.to_csv('DATA/Dataset/wikiart_full_combined_index.csv', index=False)
 # Optimizing parameters
 # index.nprobe = 10  # increase the number of clusters to explore during search
 # start_time = time.time()
@@ -57,7 +54,7 @@ df.to_csv('DATA/Dataset/wikiart_full_combined_index.csv', index=False)
 
 # D contains distances, I contains indices of nearest neighbors
 #print("Distances:", D)
-print("Indices:", len(I))
+
 
 
 
