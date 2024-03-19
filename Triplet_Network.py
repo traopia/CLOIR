@@ -11,6 +11,7 @@ from torchvision import transforms
 from create_data_loader import TripletLossDataset_features
 import time 
 import os
+import argparse
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import random
@@ -148,6 +149,12 @@ def main(feature, positive_based_on_similarity, negative_based_on_similarity):
 
 if __name__ == "__main__":
     start_time = time.time() 
+
+    parser = argparse.ArgumentParser(description="Train Triplet Loss Contrastive Network on Wikiart to predict influence.")
+    parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
+    parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
+    args = parser.parse_args()
     wandb.init(
     # set the wandb project where this run will be logged
     project="Triplet_Network_Wikiart_predict_Influence",
@@ -159,9 +166,9 @@ if __name__ == "__main__":
     "preprocessing": "ResNet34",
     "batch_size": 32,
     "epochs": 10,
-    "feature": "image_features",
-    "positive_based_on_similarity": False,
-    "negative_based_on_similarity": True
+    "feature": args.feature,
+    "positive_based_on_similarity": args.positive_based_on_similarity,
+    "negative_based_on_similarity": args.negative_based_on_similarity
     }
 
     )
