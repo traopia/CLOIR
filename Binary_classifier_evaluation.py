@@ -29,7 +29,7 @@ def get_inputs(data, feature):
     return positive_examples_all, negative_examples_all
 
 
-def model_training(positive_examples_all, negative_examples_all, model_name):
+def model_training(positive_examples_all, negative_examples_all, model_path):
     # Splitting the data into training and testing sets
 
     X_positive = positive_examples_all.reshape(-1, 1024)
@@ -62,7 +62,7 @@ def model_training(positive_examples_all, negative_examples_all, model_name):
     accuracy = accuracy_score(y_test.cpu().numpy(), y_pred)
 
     print("Accuracy:", accuracy)
-
+    model_name = model_path+'/binary_classifier.pkl'
     with open(model_name, 'wb') as f:
         pickle.dump(model, f)
     return model
@@ -80,16 +80,13 @@ def main():
     #         print(f'Features with model {i}')
     #         model_path = i + '/model.pth'
     name =  '_'.join(data_path.split('/')[-1].split('.')[0].split('_')[2:])
-    model_path = f'trained_models/TripletResNet_{name}/model.pth'
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model_path = f'trained_models/TripletResNet_{name}'
+    model.load_state_dict(torch.load(model_path+'/model.pth', map_location=torch.device('cpu')))
     model.eval()
     data.df[f'trained_{feature}'] = data.df[feature].apply(lambda x: model.forward_once(x).detach())
 
     positive_examples_all, negative_examples_all = get_inputs(data,f'trained_{feature}')
-    model_training(positive_examples_all, negative_examples_all, 'model.pkl')
-
-    feature = 'image_features'
-
+    model_training(positive_examples_all, negative_examples_all,model_path)
 
 
 
