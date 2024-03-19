@@ -69,24 +69,23 @@ def model_training(positive_examples_all, negative_examples_all, model_path):
 
 
 def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps")
-    data_path = 'DATA/Dataset_toload/train_dataset_image_features_posfaiss_negfaiss.pt'
-    data = torch.load(data_path)
-    feature = 'image_features'
-    model = TripletResNet_features(data.df.loc[0,feature].shape[0])
-    # trained_models_path = glob('trained_models/*', recursive = True)
-    # for i in trained_models_path:
-    #     if feature in i:
-    #         print(f'Features with model {i}')
-    #         model_path = i + '/model.pth'
-    name =  '_'.join(data_path.split('/')[-1].split('.')[0].split('_')[2:])
-    model_path = f'trained_models/TripletResNet_{name}'
-    model.load_state_dict(torch.load(model_path+'/model.pth', map_location=torch.device('cpu')))
-    model.eval()
-    data.df[f'trained_{feature}'] = data.df[feature].apply(lambda x: model.forward_once(x).detach())
-
-    positive_examples_all, negative_examples_all = get_inputs(data,f'trained_{feature}')
-    model_training(positive_examples_all, negative_examples_all,model_path)
+    features = ['image_features', 'text_features', 'image_text_features']
+    for feature in features:
+        trained_models_path = glob('trained_models/*', recursive = True)
+        name = '_'.join(trained_models_path.split('/')[-1].split('.')[0].split('_')[1:])
+        for i in trained_models_path:
+            if 'TripletResNet_'+feature in i:
+                print(f'Features with model {i}')
+                model_path = i + '/model.pth'
+                name = '_'.join(i.split('/')[-1].split('.')[0].split('_')[1:])
+                data_path = 'DATA/Dataset_toload/train_dataset_'+name+'.pt'
+                model = TripletResNet_features(data.df.loc[0,feature].shape[0])
+                data = torch.load(data_path)
+                model.load_state_dict(torch.load(model_path+'/model.pth', map_location=torch.device('cpu')))
+                model.eval()
+                data.df[f'trained_{feature}'] = data.df[feature].apply(lambda x: model.forward_once(x).detach())
+                positive_examples_all, negative_examples_all = get_inputs(data,f'trained_{feature}')
+                model_training(positive_examples_all, negative_examples_all,i)
 
 
 
