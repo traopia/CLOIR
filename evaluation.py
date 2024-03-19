@@ -164,25 +164,31 @@ def main():
     unique_values = df['artist_name'].explode().unique()
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
+    features = ['image_features', 'text_features', 'image_text_features']
+    for feature in features:
 
-    feature = 'image_features'
-
-    model = TripletResNet_features(df.loc[0,feature].shape[0])
-    trained_models_path = glob('trained_models/*', recursive = True)
-    for i in trained_models_path:
-        if feature in i:
-            print(f'Features with model {i}')
-            model_path = i + '/model.pth'
-            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-            model.eval()
-            df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-            retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,feature,10,device).positive_examples_group()
-            IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree}
-            if os.path.exists(f'{i}/IR_metrics') == False:
-                os.makedirs(f'{i}/IR_metrics')
-            torch.save(IR_metrics, f'{i}/IR_metrics/metrics.pth')
-            print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
-            print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+        retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,feature,10,device).positive_examples_group()
+        print(f'BASELINE METRIC with {feature}')
+        print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
+        print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+        print('---------------------------------------')
+        model = TripletResNet_features(df.loc[0,feature].shape[0])
+        trained_models_path = glob('trained_models/*', recursive = True)
+        for i in trained_models_path:
+            if 'TripletResNet_'+feature in i:
+                print(f'Features with model {i}')
+                model_path = i + '/model.pth'
+                model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+                model.eval()
+                df[f'trained_{i}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
+                retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,f'trained_{i}',10,device).positive_examples_group()
+                IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree}
+                if os.path.exists(f'{i}/IR_metrics') == False:
+                    os.makedirs(f'{i}/IR_metrics')
+                torch.save(IR_metrics, f'{i}/IR_metrics/metrics.pth')
+                print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
+                print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+                print('---------------------------------------')
 
 if __name__ == '__main__':
     start_time = time.time() 
