@@ -183,3 +183,10 @@ def main():
             torch.save(IR_metrics, f'{i}/IR_metrics/metrics.pth')
             print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
             print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+
+if __name__ == '__main__':
+    start_time = time.time() 
+    main()
+    end_time = time.time()
+    elapsed_time = end_time - start_time  
+    print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))
