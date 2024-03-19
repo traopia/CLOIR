@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import time
 import os
+import argparse
+from collections import Counter
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -119,14 +121,6 @@ class TripletLossDataset_features(Dataset):
                 
         return df[f'neg_ex_{self.feature}']
 
-                
-
-
-            
-
-
-
-  
 
     def positive_examples_group(self,df):
         
@@ -166,16 +160,13 @@ class TripletLossDataset_features(Dataset):
         return img_anchor, img_pos, img_neg
 
 
-def main():
+def main(feature, positive_based_on_similarity, negative_based_on_similarity):
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
     unique_values = df['artist_name'].explode().unique()
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
     print('Number of observations before filtering:',len(df))
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    feature = 'image_features'
-    positive_based_on_similarity = False # if True, use faiss library to find similar vectors
-    negative_based_on_similarity = True # if True, use faiss library to find similar vectors
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, 10, feature, device, positive_based_on_similarity, negative_based_on_similarity)
@@ -185,7 +176,12 @@ def main():
 
 if __name__ == "__main__":
     start_time = time.time() 
-    main()
+    parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
+    parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
+    parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
+    args = parser.parse_args()
+    main(args.feature, args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
