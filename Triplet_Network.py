@@ -96,9 +96,11 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
         running_accuracy_train, running_accuracy_val = 0.0, 0.0
  
 
-    if os.path.exists('trained_models') == False:
-        os.makedirs('trained_models')
-    torch.save(model.state_dict(), f'trained_models/{name_model}.pth')
+    if os.path.exists(f'trained_models/{name_model}') == False:
+        os.makedirs(f'trained_models/{name_model}')
+    torch.save(model.state_dict(), f'trained_models/{name_model}/model.pth')
+    metrics = {'loss_plot_train': loss_plot_train, 'loss_plot_val': loss_plot_val, 'accuracy_plot_train': accuracy_plot_train, 'accuracy_plot_val': accuracy_plot_val}
+    torch.save(metrics, f'trained_models/{name_model}/metrics.pth')
 
     plt.plot(loss_plot_train, label='Training Loss')
     plt.plot(loss_plot_val, label='Validation Loss')
@@ -108,9 +110,10 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
     plt.xlabel('Epoch')
     plt.ylabel('Loss / Accuracy')
     plt.legend()
-    if os.path.exists('trained_models/Loss_figures') == False:
-        os.makedirs('trained_models/Loss_figures')
-    plt.savefig(f'trained_models/Loss_figures/tripletloss_{name_model}.png')
+    plt.savefig(f'trained_models/{name_model}/loss_plot.png')
+
+
+
 
 
     
@@ -162,7 +165,7 @@ if __name__ == "__main__":
     config={
     "learning_rate": 0.0005,
     "architecture": "Triplet Network",
-    "dataset": "Wikiart 1000",
+    "dataset": "Wikiart",
     "preprocessing": "ResNet34",
     "batch_size": 32,
     "epochs": 10,
