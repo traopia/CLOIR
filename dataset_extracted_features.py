@@ -15,10 +15,9 @@ def clean(df):
     df.dropna(subset=['influenced_by'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     unique_values = df['artist_name'].explode().unique()
-    df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
+    #df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
-    df = df[df['influenced_by'].map(len) > 0]
-    df.reset_index(drop=True, inplace=True)
+    df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
     return df
 
 
@@ -73,10 +72,10 @@ def get_text_features(df, device):
     # Load GPT-2 tokenizer and model
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2', do_basic_tokenize=False, do_lower_case=False)
     model = GPT2Model.from_pretrained('gpt2').to(device)
-    df.loc[:, 'title']  = df.apply(lambda x: x.relative_path.split('/')[-1].split('.')[0].split('_')[1], axis=1)
+    df.loc[:, 'title']  = df.apply(lambda x: x.relative_path.split('/')[-1].split('.')[0].split('_')[1] if len(x.relative_path.split('/')[-1].split('.')[0].split('_')) ==2 else x.relative_path.split('/')[-1].split('.')[0].split('_')   , axis=1)
     df.loc[:, 'tags'] = df['tags'].fillna(' ')
     # Concatenate text from different columns
-    df.loc[:,'concatenated_text'] = df['artist_attribution'].astype(str) + ' ' + df['style_classification'].astype(str)  + ' '  + df['title'].astype(str) + ' ' + df['tags'].astype(str) + ' ' + df['timeframe_estimation'].astype(str) + ' ' + df['artist_school'].astype(str) 
+    df.loc[:,'concatenated_text'] = df['style_classification'].astype(str)  + ' '  + df['title'].astype(str) + ' ' + df['tags'].astype(str) + ' ' + df['timeframe_estimation'].astype(str) + ' ' + df['artist_school'].astype(str) 
 
     # Get embeddings for the concatenated text
     embeddings = []
@@ -92,33 +91,19 @@ def preprocess_data(df,device):
     '''Preprocess the data and save it as a pickle file'''
 
     df['text_features'] = get_text_features(df,device)
-    df['image_features'] = get_image_features(df,device)
+    #df['image_features'] = get_image_features(df,device)
     df['image_text_features'] = df.apply(lambda x: torch.cat([x['image_features'], x['text_features']]), axis=1)
 
-    df.to_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
+    df.to_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
 
     return df
 
 
-def get_dictionaries(df):
-    dict_influenced_by = df.groupby('artist_name')['influenced_by'].first().to_dict()
-    artist_to_paintings = {}
-    for index, row in df.iterrows():
-        artist = row['artist_name']
-        artist_to_paintings.setdefault(artist, []).append(index)
-    artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-    if os.path.exists('DATA/dict') == False:
-        os.makedirs('DATA/dict')
-    file_path = 'DATA/dict/artist_to_influencer_paintings.pkl'
-    with open(file_path, 'wb') as file:
-        pickle.dump(artist_to_influencer_paintings, file)
-    return artist_to_influencer_paintings
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_influence_filtered.csv')
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
     df = clean(df)
-    get_dictionaries(df)
     preprocess_data(df,device)
 
 if __name__ == '__main__':

@@ -21,9 +21,9 @@ class TripletLossDataset_features(Dataset):
         self.device = device
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
-        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(df)
-        self.filtered_indices = self.filter_indices(df)
-        self.df = df #df[df.index.isin([value for sublist in self.dict_influence_indexes.values() for value in sublist])]#df[df.index.isin(self.filtered_indices)].reset_index(drop=True)
+        self.df = df[df['mode'] == mode].reset_index(drop=True)
+        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(self.df)
+        self.filtered_indices = self.filter_indices(self.df)
         self.dimension = self.df[self.feature][0].shape[0]  
         self.positive_examples = self.positive_examples_group(self.df)   
         self.negative_examples = self.get_negative_examples(self.df)  
@@ -35,7 +35,6 @@ class TripletLossDataset_features(Dataset):
     def filter_indices(self,df):
         '''Filter indices based on mode and number of examples per anchor'''
         all_values = [value for sublist in self.painter_indexes.values() for value in sublist]
-        #filtered = [index for index in range(len(df)) if df.iloc[index]['artist_name'] in self.dict_influence_indexes.keys() ]# and index in all_values]
         filtered = [index for index in range(len(df)) if df.iloc[index]['mode'] == self.mode and index in all_values]
         for i in filtered:
             if df.iloc[i]['artist_name'] not in self.dict_influence_indexes.keys():
@@ -91,10 +90,9 @@ class TripletLossDataset_features(Dataset):
             D, I = index.search(query_vector.reshape(1,-1), k)  
             I = list(I[0][1:])   
             I = [index_list[i] for i in I]
-            #df.at[query,f'pos_ex_{self.feature}'] = I
             results.append(I)
             
-        return results #df[f'pos_ex_{self.feature}']
+        return results 
 
 
 
@@ -110,7 +108,8 @@ class TripletLossDataset_features(Dataset):
             query = list(group.index)
             if artist in self.dict_influence_indexes:
                 index_list = self.dict_influence_indexes[artist]
-                remaining_index_list = list(set(list(self.df.index)) - set(index_list))
+                artist_indexes = self.painter_indexes[artist]
+                remaining_index_list = list(set(list(self.df.index)) - set(index_list) - set(artist_indexes)) 
             if self.negative_similarity_based:
                 results = self.vector_similarity_search_group(query, remaining_index_list,df)
                 for i,q in enumerate(query):
@@ -161,11 +160,7 @@ class TripletLossDataset_features(Dataset):
 
 
 def main(feature, positive_based_on_similarity, negative_based_on_similarity):
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
-    unique_values = df['artist_name'].explode().unique()
-    df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
-    df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
-    print('Number of observations before filtering:',len(df))
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
