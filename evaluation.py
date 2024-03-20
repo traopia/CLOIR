@@ -161,11 +161,8 @@ class Evaluation():
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
-    unique_values = df['artist_name'].explode().unique()
-    df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
-    df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
-    df = df[df['mode'] == 'test'].reset_index(drop=True)
-    features = ['image_features', 'text_features', 'image_text_features']
+    df = df[df['mode'] == 'val'].reset_index(drop=True)
+    features = ['image_features']#, 'text_features', 'image_text_features']
     for feature in features:
 
         retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,feature,10,device).positive_examples_group()
