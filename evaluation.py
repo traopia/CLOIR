@@ -101,6 +101,7 @@ class Evaluation():
         grouped = self.df.groupby('artist_name')
         self.df[f'pos_ex_{self.feature}'] = [None]*len(self.df)
         precision_at_k_artist, precision_at_k_artist_second_degree = {}, {}
+        precisions_dict_result, precisions_dict_result_second_degree = {}, {}
         mrr_artist, mrr_artist_second_degree = {}, {}
         for artist, group in grouped:
             query = list(group.index)
@@ -124,36 +125,46 @@ class Evaluation():
                 if len(index_list) > 0:  # Check if index_list is not empty
                     results = self.vector_similarity_search_group(query, index_list, self.df)
                     precision_at_k, precision_at_k_second_degree = [], []
+                    precisions_dict, precisions_dict_second_degree = [], []
                     mrr_overall, mrr_overall_second_degree = [], []
                 else:
                     results = []
                     precision_at_k, precision_at_k_second_degree = [], []
+                    precisions_dict, precisions_dict_second_degree = [], []
                     mrr_overall, mrr_overall_second_degree = [], []
 
                 for i,q in enumerate(query):
                     self.df.at[q,f'pos_ex_{self.feature}'] = results[i]
                     influencers_in_results = [j for j in results[i] if j in influencers_list]
+                    dict_results = {k: results[i][:k] for k in range(1, len(results[i]) + 1)}
+                    dict_influencers_in_results = {key: [value for value in values if value in influencers_list] for key, values in dict_results.items()}
+                    precision_dict = {k: len(v)/k for k,v in dict_influencers_in_results.items()}
+
                     second_degree_influencers_in_results = [j for j in results[i] if j in second_degree_influencers]
+                    dict_second_degree_influencers_in_results = {key: [value for value in values if value in second_degree_influencers] for key, values in dict_results.items()}
+                    precision_dict_second_degree = {k: len(v)/k for k,v in dict_second_degree_influencers_in_results.items()}
+
                     mrr = self.mean_reciprocal_rank({q:influencers_list}, {q:results[i]})
                     mrr_second_degree = self.mean_reciprocal_rank({q:second_degree_influencers}, {q:results[i]})
 
                     precision_at_k.append(len(influencers_in_results)/self.num_examples)
                     mrr_overall.append(mrr)
+                    precisions_dict.append(precision_dict)
 
                     precision_at_k_second_degree.append(len(second_degree_influencers_in_results)/self.num_examples)
                     mrr_overall_second_degree.append(mrr_second_degree)
+                    precisions_dict_second_degree.append(precision_dict_second_degree)
 
-
-                #influencers_right_artist = [len(i) for i in influencers_right_artist]
-                # print(f'For Artist {artist}, Influencers in results: {np.mean(precision_at_k)}, MRR: {np.mean(mrr_overall)}')
-                # print(f'For Artist {artist}, Second Degree Influencers in results: {np.mean(precision_at_k_second_degree)}, MRR: {np.mean(mrr_overall_second_degree)}')
                 precision_at_k_artist[artist] = np.mean(precision_at_k)
                 mrr_artist[artist] = np.mean(mrr_overall)
                 precision_at_k_artist_second_degree[artist] = np.mean(precision_at_k_second_degree)
                 mrr_artist_second_degree[artist] = np.mean(mrr_overall_second_degree)
 
+                precisions_dict_result[artist] = {key: sum(d[key] for d in precisions_dict) / len(precisions_dict) for key in precisions_dict[0]}
+                precisions_dict_result_second_degree[artist] = {key: sum(d[key] for d in precisions_dict_second_degree) / len(precisions_dict_second_degree) for key in precisions_dict_second_degree[0]}
 
-        return self.df[f'pos_ex_{self.feature}'], precision_at_k_artist, mrr_artist, precision_at_k_artist_second_degree, mrr_artist_second_degree
+
+        return self.df[f'pos_ex_{self.feature}'], precision_at_k_artist, mrr_artist, precision_at_k_artist_second_degree, mrr_artist_second_degree, precisions_dict_result, precisions_dict_result_second_degree
     
 
 
@@ -162,13 +173,16 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
     df = df[df['mode'] == 'val'].reset_index(drop=True)
-    features = ['image_features']#, 'text_features', 'image_text_features']
+    features = ['image_features', 'text_features', 'image_text_features']
     for feature in features:
 
-        retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,feature,10,device).positive_examples_group()
+        retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree,precisions_dict_result, precisions_dict_result_second_degree= Evaluation(df,feature,10,device).positive_examples_group()
         print(f'BASELINE METRIC with {feature}')
-        print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
-        print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+        print(f'Precision at k10 for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
+        print(f'Precision at k10 for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+        print('Precision at different k:', {inner_key: sum(d[inner_key] for d in precisions_dict_result.values()) / len(precisions_dict_result) for inner_key in precisions_dict_result[next(iter(precisions_dict_result))].keys()})
+        print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
+
         print('---------------------------------------')
         model = TripletResNet_features(df.loc[0,feature].shape[0])
         trained_models_path = glob('trained_models/*', recursive = True)
@@ -179,13 +193,15 @@ def main():
                 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
                 model.eval()
                 df[f'trained_{i}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-                retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree = Evaluation(df,f'trained_{i}',10,device).positive_examples_group()
-                IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree}
+                retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree ,precisions_dict_result, precisions_dict_result_second_degree = Evaluation(df,f'trained_{i}',10,device).positive_examples_group()
+                IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
                 if os.path.exists(f'{i}/IR_metrics') == False:
                     os.makedirs(f'{i}/IR_metrics')
                 torch.save(IR_metrics, f'{i}/IR_metrics/metrics_test.pth')
-                print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
-                print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+                print(f'Precision at k10 for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
+                print(f'Precision at k10 for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
+                print('Precision at different k:', {inner_key: sum(d[inner_key] for d in precisions_dict_result.values()) / len(precisions_dict_result) for inner_key in precisions_dict_result[next(iter(precisions_dict_result))].keys()})
+                print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
                 print('---------------------------------------')
 
 if __name__ == '__main__':
