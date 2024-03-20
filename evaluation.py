@@ -145,8 +145,8 @@ class Evaluation():
 
 
                 #influencers_right_artist = [len(i) for i in influencers_right_artist]
-                print(f'For Artist {artist}, Influencers in results: {np.mean(precision_at_k)}, MRR: {np.mean(mrr_overall)}')
-                print(f'For Artist {artist}, Second Degree Influencers in results: {np.mean(precision_at_k_second_degree)}, MRR: {np.mean(mrr_overall_second_degree)}')
+                # print(f'For Artist {artist}, Influencers in results: {np.mean(precision_at_k)}, MRR: {np.mean(mrr_overall)}')
+                # print(f'For Artist {artist}, Second Degree Influencers in results: {np.mean(precision_at_k_second_degree)}, MRR: {np.mean(mrr_overall_second_degree)}')
                 precision_at_k_artist[artist] = np.mean(precision_at_k)
                 mrr_artist[artist] = np.mean(mrr_overall)
                 precision_at_k_artist_second_degree[artist] = np.mean(precision_at_k_second_degree)
@@ -164,6 +164,7 @@ def main():
     unique_values = df['artist_name'].explode().unique()
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
+    df = df[df['mode'] == 'test'].reset_index(drop=True)
     features = ['image_features', 'text_features', 'image_text_features']
     for feature in features:
 
@@ -185,7 +186,7 @@ def main():
                 IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree}
                 if os.path.exists(f'{i}/IR_metrics') == False:
                     os.makedirs(f'{i}/IR_metrics')
-                torch.save(IR_metrics, f'{i}/IR_metrics/metrics.pth')
+                torch.save(IR_metrics, f'{i}/IR_metrics/metrics_test.pth')
                 print(f'Precision at k for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
                 print(f'Precision at k for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
                 print('---------------------------------------')
