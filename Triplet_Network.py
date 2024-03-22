@@ -118,15 +118,16 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
 
     
 
-def main(feature, positive_based_on_similarity, negative_based_on_similarity):    
+def main(feature, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
     epochs = wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
+    margin = wandb.config.margin
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}.pt')
+    dataset_train = torch.load(f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
 
     augmentations = [
     transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
@@ -142,19 +143,20 @@ def main(feature, positive_based_on_similarity, negative_based_on_similarity):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize the tensor values to range [-1, 1]
     ])    
     dataset_train.transform = transform
+    dataset_val.transform = transform
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
-
-    criterion = nn.TripletMarginLoss(margin=1.0, p=2)
+    criterion = nn.TripletMarginLoss(margin=margin, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}')
+    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}')
 
 if __name__ == "__main__":
     start_time = time.time() 
 
     parser = argparse.ArgumentParser(description="Train Triplet Loss Contrastive Network on Wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
@@ -169,14 +171,16 @@ if __name__ == "__main__":
     "preprocessing": "ResNet34",
     "batch_size": 32,
     "epochs": 10,
+    "margin": 10, 
+    "num_examples": args.num_examples,
     "feature": args.feature,
     "positive_based_on_similarity": args.positive_based_on_similarity,
-    "negative_based_on_similarity": args.negative_based_on_similarity
+    "negative_based_on_similarity": args.negative_based_on_similarity,
     }
 
     )
 
-    main(wandb.config.feature, wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
+    main(wandb.config.feature, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))

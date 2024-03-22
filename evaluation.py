@@ -18,6 +18,8 @@ class Evaluation():
         self.device = device
         self.dict_influence_indexes, self.artist_to_paintings, self.dict_influenced_by = self.get_dictionaries(df)
 
+
+
     def mean_reciprocal_rank(self,ground_truth, ranked_lists):
         """
         Compute the Mean Reciprocal Rank (MRR) for a set of queries.
@@ -171,39 +173,46 @@ class Evaluation():
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
-    df = df[df['mode'] == 'val'].reset_index(drop=True)
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
+    mode = 'val'
+    df = df[df['mode'] == mode].reset_index(drop=True)
     features = ['image_features', 'text_features', 'image_text_features']
     for feature in features:
-
         retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree,precisions_dict_result, precisions_dict_result_second_degree= Evaluation(df,feature,10,device).positive_examples_group()
+        IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
+        if os.path.exists('trained_models/baseline_IR_metrics') == False:
+            os.makedirs('trained_models/baseline_IR_metrics')
+        if os.path.exists(f'trained_models/baseline_IR_metrics/{feature}.pth') == False:
+            torch.save(IR_metrics,f'trained_models/baseline_IR_metrics/{feature}.pth')
         print(f'BASELINE METRIC with {feature}')
         print(f'Precision at k10 for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
         print(f'Precision at k10 for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
         print('Precision at different k:', {inner_key: sum(d[inner_key] for d in precisions_dict_result.values()) / len(precisions_dict_result) for inner_key in precisions_dict_result[next(iter(precisions_dict_result))].keys()})
         print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
-
         print('---------------------------------------')
         model = TripletResNet_features(df.loc[0,feature].shape[0])
         trained_models_path = glob('trained_models/*', recursive = True)
+        trained_models_path = ['trained_models/TripletResNet_text_features_posrandom_negrandom_100_margin10']
         for i in trained_models_path:
             if 'TripletResNet_'+feature in i:
+            #if 'TripletResNet_' + feature in i and i.find('margin') > i.find('TripletResNet_' + feature): #
                 print(f'Features with model {i}')
                 model_path = i + '/model.pth'
                 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
                 model.eval()
                 df[f'trained_{i}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
                 retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree ,precisions_dict_result, precisions_dict_result_second_degree = Evaluation(df,f'trained_{i}',10,device).positive_examples_group()
-                IR_metrics = {'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
-                if os.path.exists(f'{i}/IR_metrics') == False:
-                    os.makedirs(f'{i}/IR_metrics')
-                torch.save(IR_metrics, f'{i}/IR_metrics/metrics_test.pth')
+                IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
                 print(f'Precision at k10 for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
                 print(f'Precision at k10 for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
                 print('Precision at different k:', {inner_key: sum(d[inner_key] for d in precisions_dict_result.values()) / len(precisions_dict_result) for inner_key in precisions_dict_result[next(iter(precisions_dict_result))].keys()})
                 print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
                 print('---------------------------------------')
+                print('                                       ')
 
+                if os.path.exists(f'{i}/IR_metrics') == False:
+                    os.makedirs(f'{i}/IR_metrics')
+                torch.save(IR_metrics, f'{i}/IR_metrics/metrics_{mode}.pth')
 if __name__ == '__main__':
     start_time = time.time() 
     main()
