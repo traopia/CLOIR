@@ -9,6 +9,10 @@ import time
 import pickle
 import os
 
+def calculate_average(s):
+    parts = s.split('-')
+    return (int(parts[0]) + int(parts[1])) / 2
+
 
 
 def clean(df):
@@ -18,18 +22,20 @@ def clean(df):
     #df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
+    # Fill NaN values in 'col1' with the average of 'col2'
+    df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
     return df
 
 
-def image_features(image_path,device):
-
-    weights = models.ResNet34_Weights.DEFAULT
-    resnet34 = models.resnet34(weights=weights)
-    resnet34 = resnet34.to(device)
-    resnet34 = torch.nn.Sequential(*(list(resnet34.children())[:-1]))
+def image_features(image_path,general_path,device):
+    #34 or 152
+    weights = models.ResNet152_Weights.DEFAULT
+    resnet = models.resnet152(weights=weights)
+    resnet = resnet.to(device)
+    resnet = torch.nn.Sequential(*(list(resnet.children())[:-1]))
 
     # Set model to evaluation mode
-    resnet34.eval()
+    resnet.eval()
     # Define image preprocessing pipeline
     preprocess = transforms.Compose([
         transforms.Resize(256),
@@ -37,7 +43,7 @@ def image_features(image_path,device):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    full_path = 'wikiart/' + image_path
+    full_path = general_path + image_path
     image = Image.open(full_path)
     # Preprocess the image
     image_tensor = preprocess(image)
@@ -47,16 +53,16 @@ def image_features(image_path,device):
     image_tensor = image_tensor.to(device)
     # Extract features
     with torch.no_grad():
-        features = resnet34(image_tensor)
+        features = resnet(image_tensor)
     # Flatten the features
     features = features.squeeze().cpu()
 
     return features
 
-def get_image_features(df,device):
+def get_image_features(df,general_path, device):
     embeddings = []
     for image_path in df['relative_path']:
-        embedding = image_features(image_path,device)
+        embedding = image_features(image_path,general_path,device)
         embeddings.append(embedding)
     return embeddings
 
@@ -87,14 +93,14 @@ def get_text_features(df, device):
 
 
 
-def preprocess_data(df,device):
+def preprocess_data(df,general_path,dataset_outpath, device):
     '''Preprocess the data and save it as a pickle file'''
 
-    df['text_features'] = get_text_features(df,device)
-    #df['image_features'] = get_image_features(df,device)
+    #df['text_features'] = get_text_features(df,device)
+    df['image_features'] = get_image_features(df,general_path, device)
     df['image_text_features'] = df.apply(lambda x: torch.cat([x['image_features'], x['text_features']]), axis=1)
 
-    df.to_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
+    df.to_pickle(dataset_outpath)
 
     return df
 
@@ -102,9 +108,11 @@ def preprocess_data(df,device):
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_try.pkl')
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
     df = clean(df)
-    preprocess_data(df,device)
+    general_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/' #'wikiart/'
+    dataset_outpath = 'DATA/Dataset/wikiart_full_combined_resnet152.pkl'
+    preprocess_data(df,general_path,dataset_outpath,device)
 
 if __name__ == '__main__':
     start_time = time.time() 
