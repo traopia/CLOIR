@@ -122,7 +122,8 @@ class Evaluation():
                     index_list = [i for i in index_list if i < len(self.df)]
                 else:
                     no_index_list = self.artist_to_paintings[artist]
-                    index_list = set(self.df.index) - set(no_index_list)
+                    index_date_higher = self.df[self.df['date'] > group.date.mean() ].index.tolist()
+                    index_list = set(self.df.index) - set(no_index_list) - set(index_date_higher)
 
                 if len(index_list) > 0:  # Check if index_list is not empty
                     results = self.vector_similarity_search_group(query, index_list, self.df)
@@ -192,7 +193,7 @@ def main():
         print('---------------------------------------')
         model = TripletResNet_features(df.loc[0,feature].shape[0])
         trained_models_path = glob('trained_models/*', recursive = True)
-        trained_models_path = ['trained_models/TripletResNet_text_features_posrandom_negrandom_100_margin10']
+        #trained_models_path = ['trained_models/TripletResNet_image_text_features_posrandom_negrandom_100_margin10']
         for i in trained_models_path:
             if 'TripletResNet_'+feature in i:
             #if 'TripletResNet_' + feature in i and i.find('margin') > i.find('TripletResNet_' + feature): #
