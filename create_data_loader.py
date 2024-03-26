@@ -22,7 +22,8 @@ class TripletLossDataset_features(Dataset):
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries()
+        self.dict_influence_indexes, self.painter_indexes, self.artist_selected = self.get_dictionaries()
+        self.df = self.df[self.df['artist_name'].isin(self.artist_selected)].reset_index(drop=True)
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df[self.feature][0].shape[0]  
         self.positive_examples = self.positive_examples_group()   
@@ -55,8 +56,8 @@ class TripletLossDataset_features(Dataset):
         artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
         artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
         artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
-        print(artist_to_influencer_paintings.keys())
-        return artist_to_influencer_paintings, artist_to_paintings_new
+        artist_selected = list(artist_to_influencer_paintings.keys())
+        return artist_to_influencer_paintings, artist_to_paintings_new, artist_selected
 
         
     def vector_similarity_search_group(self,query_indexes, index_list):
@@ -127,12 +128,9 @@ class TripletLossDataset_features(Dataset):
         grouped = self.df.groupby('artist_name')
         self.df[f'pos_ex_{self.feature}'] = [None]*len(self.df)
         for artist, group in grouped:
-            print(artist)
             query = list(group.index)
             query = [i for i in query if i < len(self.df)]
-            if artist in self.dict_influence_indexes:
-                index_list = self.dict_influence_indexes[artist]
-                print('index', index_list)
+            index_list = self.dict_influence_indexes[artist]
                 #index_list = [i for i in index_list if i < len(self.df)]
             if self.positive_similarity_based == True:
                 results = self.vector_similarity_search_group(query, index_list)
