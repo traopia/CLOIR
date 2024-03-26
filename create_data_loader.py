@@ -26,7 +26,7 @@ class TripletLossDataset_features(Dataset):
         #print(len(self.artist_selected))
         self.df = self.df[self.df['artist_name'].isin(self.artist_selected)].reset_index(drop=True)
         #self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(select=False)
-
+        #print how many values per keys
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df[self.feature][:-1].shape[0]  
         self.positive_examples = self.positive_examples_group()   
@@ -39,11 +39,12 @@ class TripletLossDataset_features(Dataset):
     def filter_indices(self):
         '''Filter indices based on mode and number of examples per anchor'''
         all_values = [value for sublist in self.painter_indexes.values() for value in sublist]
-        filtered = [index for index in range(len(self.df)) if self.df.iloc[index]['mode'] == self.mode and index in all_values]
-        for i in filtered:
-            if self.df.iloc[i]['artist_name'] not in self.dict_influence_indexes.keys():
-                print('not in dict',i,self.df.iloc[i]['artist_name'])
-                filtered.remove(i)
+        # filtered = [index for index in range(len(self.df)) if self.df.iloc[index]['mode'] == self.mode and index in all_values]
+        # for i in filtered:
+        #     if self.df.iloc[i]['artist_name'] not in self.dict_influence_indexes.keys():
+        #         print('not in dict',i,self.df.iloc[i]['artist_name'])
+        #         filtered.remove(i)
+        filtered = [index for index in range(len(self.df)) if index in all_values]
         return filtered
 
 
@@ -61,6 +62,7 @@ class TripletLossDataset_features(Dataset):
             artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
             artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
             artist_selected = list(artist_to_influencer_paintings.keys())
+
             return artist_to_influencer_paintings, artist_to_paintings_new, artist_selected
         else:
             return artist_to_influencer_paintings, artist_to_paintings
@@ -124,7 +126,11 @@ class TripletLossDataset_features(Dataset):
                     self.df.at[q,f'neg_ex_{self.feature}'] = results[i]
             else:
                 for q in query:
-                    self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(remaining_index_list, self.num_examples)
+                    index_list = [i for i in index_list if i < len(self.df)]
+                    if len(index_list) > self.num_examples:
+                        self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(remaining_index_list, self.num_examples)
+                    else:
+                        self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(list(self.df.index), self.num_examples)
                 
         return self.df[f'neg_ex_{self.feature}']
 
@@ -138,7 +144,6 @@ class TripletLossDataset_features(Dataset):
             query = [i for i in query]# if i < len(self.df)]
             #if artist in self.dict_influence_indexes.keys():
             index_list = self.dict_influence_indexes[artist]
-            #index_list = [i for i in index_list if i < len(self.df)]
             if self.positive_similarity_based == True:
                 results = self.vector_similarity_search_group(query, index_list)
                 for i,q in enumerate(query):
@@ -146,7 +151,12 @@ class TripletLossDataset_features(Dataset):
                 #self.df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
             else:
                 for q in query:
-                    self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
+                    index_list = [i for i in index_list if i < len(self.df)]
+
+                    if len(index_list) > self.num_examples:
+                        self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
+                    else:
+                        self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(list(self.df.index), self.num_examples)
         return self.df[f'pos_ex_{self.feature}']
 
     
@@ -213,7 +223,7 @@ if __name__ == "__main__":
     start_time = time.time() 
     parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
-    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--feature_extractor_name', type=str, default = 'Random_artist_split', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
