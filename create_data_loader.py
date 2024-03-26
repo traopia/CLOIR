@@ -22,12 +22,13 @@ class TripletLossDataset_features(Dataset):
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        dict_influence_indexes, painter_indexes, artist_selected = self.get_dictionaries(select=True)
-        self.df = self.df[self.df['artist_name'].isin(artist_selected)].reset_index(drop=True)
-        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(select=False)
+        self.dict_influence_indexes, self.painter_indexes, self.artist_selected = self.get_dictionaries(select=True)
+        #print(len(self.artist_selected))
+        self.df = self.df[self.df['artist_name'].isin(self.artist_selected)].reset_index(drop=True)
+        #self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(select=False)
 
         self.filtered_indices = self.filter_indices()
-        self.dimension = self.df[self.feature][0].shape[0]  
+        self.dimension = self.df[self.feature][:-1].shape[0]  
         self.positive_examples = self.positive_examples_group()   
         self.negative_examples = self.get_negative_examples()  
         print('Number of observations after filtering:',len(self.filtered_indices))
@@ -135,6 +136,7 @@ class TripletLossDataset_features(Dataset):
         for artist, group in grouped:
             query = list(group.index)
             query = [i for i in query]# if i < len(self.df)]
+            #if artist in self.dict_influence_indexes.keys():
             index_list = self.dict_influence_indexes[artist]
             #index_list = [i for i in index_list if i < len(self.df)]
             if self.positive_similarity_based == True:
@@ -196,6 +198,9 @@ def main(feature,feature_extractor_name, num_examples, positive_based_on_similar
         df = split_by_artist_random(df)
     elif feature_extractor_name == "ResNet34_newsplit":
         df = split_by_strata_artist(df)
+   
+    if os.path.exists(f'DATA/Dataset_toload/{feature_extractor_name}') == False:
+        os.makedirs(f'DATA/Dataset_toload/{feature_extractor_name}')
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
