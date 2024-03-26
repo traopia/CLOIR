@@ -22,8 +22,10 @@ class TripletLossDataset_features(Dataset):
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        self.dict_influence_indexes, self.painter_indexes, self.artist_selected = self.get_dictionaries()
-        self.df = self.df[self.df['artist_name'].isin(self.artist_selected)].reset_index(drop=True)
+        dict_influence_indexes, painter_indexes, artist_selected = self.get_dictionaries(select=True)
+        self.df = self.df[self.df['artist_name'].isin(artist_selected)].reset_index(drop=True)
+        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(select=False)
+
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df[self.feature][0].shape[0]  
         self.positive_examples = self.positive_examples_group()   
@@ -44,20 +46,23 @@ class TripletLossDataset_features(Dataset):
         return filtered
 
 
-    def get_dictionaries(self):
+    def get_dictionaries(self, select):
         dict_influenced_by = self.df.groupby('artist_name')['influenced_by'].first().to_dict()
         artist_to_paintings = {}
         for index, row in self.df.iterrows():
             artist = row['artist_name']
             artist_to_paintings.setdefault(artist, []).append(index)
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > self.num_examples]
-        artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
-        artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
-        artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
-        artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
-        artist_selected = list(artist_to_influencer_paintings.keys())
-        return artist_to_influencer_paintings, artist_to_paintings_new, artist_selected
+        if select:
+            keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > self.num_examples]
+            artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
+            artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
+            artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
+            artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
+            artist_selected = list(artist_to_influencer_paintings.keys())
+            return artist_to_influencer_paintings, artist_to_paintings_new, artist_selected
+        else:
+            return artist_to_influencer_paintings, artist_to_paintings
 
         
     def vector_similarity_search_group(self,query_indexes, index_list):
@@ -129,9 +134,9 @@ class TripletLossDataset_features(Dataset):
         self.df[f'pos_ex_{self.feature}'] = [None]*len(self.df)
         for artist, group in grouped:
             query = list(group.index)
-            query = [i for i in query if i < len(self.df)]
+            query = [i for i in query]# if i < len(self.df)]
             index_list = self.dict_influence_indexes[artist]
-                #index_list = [i for i in index_list if i < len(self.df)]
+            #index_list = [i for i in index_list if i < len(self.df)]
             if self.positive_similarity_based == True:
                 results = self.vector_similarity_search_group(query, index_list)
                 for i,q in enumerate(query):
@@ -187,7 +192,10 @@ def split_by_artist_random(df, train_size=0.7, val_size=0.25, test_size=0.05, ra
 
 def main(feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
-    df = split_by_artist_random(df)
+    if feature_extractor_name == "Random_artist_split":
+        df = split_by_artist_random(df)
+    elif feature_extractor_name == "ResNet34_newsplit":
+        df = split_by_strata_artist(df)
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
