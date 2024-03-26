@@ -59,6 +59,7 @@ class TripletLossDataset_features(Dataset):
             keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > self.num_examples]
             artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
             artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
+            print('discarded artists', artisit_no_influencers, len(keys_min_val))
             artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
             artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
             artist_selected = list(artist_to_influencer_paintings.keys())
@@ -127,9 +128,10 @@ class TripletLossDataset_features(Dataset):
             else:
                 for q in query:
                     index_list = [i for i in index_list if i < len(self.df)]
-                    if len(index_list) > self.num_examples:
+                    if len(index_list) >= self.num_examples:
                         self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(remaining_index_list, self.num_examples)
                     else:
+                        print('not enough examples',len(index_list))
                         self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(list(self.df.index), self.num_examples)
                 
         return self.df[f'neg_ex_{self.feature}']
@@ -153,9 +155,10 @@ class TripletLossDataset_features(Dataset):
                 for q in query:
                     index_list = [i for i in index_list if i < len(self.df)]
 
-                    if len(index_list) > self.num_examples:
+                    if len(index_list) >= self.num_examples:
                         self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
                     else:
+                        print('not enough examples',len(index_list))
                         self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(list(self.df.index), self.num_examples)
         return self.df[f'pos_ex_{self.feature}']
 
@@ -190,7 +193,7 @@ def split_by_strata_artist(df, train_size=0.7, val_size=0.25, test_size=0.05):
     
     return df
 
-def split_by_artist_random(df, train_size=0.7, val_size=0.25, test_size=0.05, random_state=42):
+def split_by_artist_random(df, train_size=0.7, val_size=0.25, test_size=0.05, random_state=55):
     unique_artists = df['artist_name'].unique()
     train_artists, remaining_artists = train_test_split(unique_artists, train_size=train_size, random_state=random_state)
     val_artists, test_artists = train_test_split(remaining_artists, train_size=val_size/(val_size+test_size), random_state=random_state)
@@ -224,7 +227,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--feature_extractor_name', type=str, default = 'Random_artist_split', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
-    parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
+    parser.add_argument('--num_examples', type=int, default=5, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
