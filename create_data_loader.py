@@ -22,31 +22,31 @@ class TripletLossDataset_features(Dataset):
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries(self.df)
-        self.filtered_indices = self.filter_indices(self.df)
+        self.dict_influence_indexes, self.painter_indexes = self.get_dictionaries()
+        self.filtered_indices = self.filter_indices()
         self.dimension = self.df[self.feature][0].shape[0]  
-        self.positive_examples = self.positive_examples_group(self.df)   
-        self.negative_examples = self.get_negative_examples(self.df)  
+        self.positive_examples = self.positive_examples_group()   
+        self.negative_examples = self.get_negative_examples()  
         print('Number of observations after filtering:',len(self.filtered_indices))
         print('length of df:',len(self.df))
 
    
 
-    def filter_indices(self,df):
+    def filter_indices(self):
         '''Filter indices based on mode and number of examples per anchor'''
         all_values = [value for sublist in self.painter_indexes.values() for value in sublist]
-        filtered = [index for index in range(len(df)) if df.iloc[index]['mode'] == self.mode and index in all_values]
+        filtered = [index for index in range(len(self.df)) if self.df.iloc[index]['mode'] == self.mode and index in all_values]
         for i in filtered:
-            if df.iloc[i]['artist_name'] not in self.dict_influence_indexes.keys():
-                print('not in dict',i,df.iloc[i]['artist_name'])
+            if self.df.iloc[i]['artist_name'] not in self.dict_influence_indexes.keys():
+                print('not in dict',i,self.df.iloc[i]['artist_name'])
                 filtered.remove(i)
         return filtered
 
 
-    def get_dictionaries(self,df):
-        dict_influenced_by = df.groupby('artist_name')['influenced_by'].first().to_dict()
+    def get_dictionaries(self):
+        dict_influenced_by = self.df.groupby('artist_name')['influenced_by'].first().to_dict()
         artist_to_paintings = {}
-        for index, row in df.iterrows():
+        for index, row in self.df.iterrows():
             artist = row['artist_name']
             artist_to_paintings.setdefault(artist, []).append(index)
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
@@ -55,19 +55,20 @@ class TripletLossDataset_features(Dataset):
         artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
         artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
         artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
+        print(artist_to_influencer_paintings.keys())
         return artist_to_influencer_paintings, artist_to_paintings_new
 
         
-    def vector_similarity_search_group(self,query_indexes, index_list,df):
+    def vector_similarity_search_group(self,query_indexes, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
         k = self.num_examples + 1
 
 
         index_list = [i for i in index_list if i < len(self.df)]
         if index_list != None:
-            xb = torch.stack(df[self.feature].tolist())[index_list]
+            xb = torch.stack(self.df[self.feature].tolist())[index_list]
         else:
-            xb = torch.stack(df[self.feature].tolist())
+            xb = torch.stack(self.df[self.feature].tolist())
 
 
         d = xb.shape[1]
@@ -97,13 +98,13 @@ class TripletLossDataset_features(Dataset):
 
 
         
-    def get_negative_examples(self,df):
+    def get_negative_examples(self):
         '''Get negative examples
         random_negative: if True, return random negative examples
          else return negative examples based on similarity to the anchor'''
 
         self.df[f'neg_ex_{self.feature}'] = [None]*len(self.df)
-        grouped = df.groupby('artist_name')
+        grouped = self.df.groupby('artist_name')
         for artist, group in grouped:
             query = list(group.index)
             if artist in self.dict_influence_indexes:
@@ -111,35 +112,37 @@ class TripletLossDataset_features(Dataset):
                 artist_indexes = self.painter_indexes[artist]
                 remaining_index_list = list(set(list(self.df.index)) - set(index_list) - set(artist_indexes)) 
             if self.negative_similarity_based:
-                results = self.vector_similarity_search_group(query, remaining_index_list,df)
+                results = self.vector_similarity_search_group(query, remaining_index_list)
                 for i,q in enumerate(query):
                     self.df.at[q,f'neg_ex_{self.feature}'] = results[i]
             else:
                 for q in query:
                     self.df.at[q,f'neg_ex_{self.feature}'] = random.sample(remaining_index_list, self.num_examples)
                 
-        return df[f'neg_ex_{self.feature}']
+        return self.df[f'neg_ex_{self.feature}']
 
 
-    def positive_examples_group(self,df):
+    def positive_examples_group(self):
         
-        grouped = df.groupby('artist_name')
+        grouped = self.df.groupby('artist_name')
         self.df[f'pos_ex_{self.feature}'] = [None]*len(self.df)
         for artist, group in grouped:
+            print(artist)
             query = list(group.index)
             query = [i for i in query if i < len(self.df)]
             if artist in self.dict_influence_indexes:
                 index_list = self.dict_influence_indexes[artist]
-                index_list = [i for i in index_list if i < len(self.df)]
+                print('index', index_list)
+                #index_list = [i for i in index_list if i < len(self.df)]
             if self.positive_similarity_based == True:
-                results = self.vector_similarity_search_group(query, index_list,df)
+                results = self.vector_similarity_search_group(query, index_list)
                 for i,q in enumerate(query):
                     self.df.at[q,f'pos_ex_{self.feature}'] = results[i]
                 #self.df[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(query, index_list,self.df)
             else:
                 for q in query:
                     self.df.at[q,f'pos_ex_{self.feature}'] = random.sample(index_list, self.num_examples)
-        return df[f'pos_ex_{self.feature}']
+        return self.df[f'pos_ex_{self.feature}']
 
     
     def __len__(self):
@@ -158,26 +161,53 @@ class TripletLossDataset_features(Dataset):
 
         return img_anchor, img_pos, img_neg
 
+from sklearn.model_selection import train_test_split
+def split_by_strata_artist(df, train_size=0.7, val_size=0.25, test_size=0.05):
+    df['mode'] = None
+    
+    for artist_name, group in df.groupby('artist_name'):
+        train_indices, val_test_indices = train_test_split(group.index, train_size=train_size, random_state=42)
+        val_indices, test_indices = train_test_split(val_test_indices, train_size=val_size/(val_size+test_size), random_state=42)
+        
+        df.loc[train_indices, 'mode'] = 'train'
+        df.loc[val_indices, 'mode'] = 'val'
+        df.loc[test_indices, 'mode'] = 'test'
+    
+    return df
 
-def main(feature,num_examples, positive_based_on_similarity, negative_based_on_similarity):
+def split_by_artist_random(df, train_size=0.7, val_size=0.25, test_size=0.05, random_state=42):
+    unique_artists = df['artist_name'].unique()
+    train_artists, remaining_artists = train_test_split(unique_artists, train_size=train_size, random_state=random_state)
+    val_artists, test_artists = train_test_split(remaining_artists, train_size=val_size/(val_size+test_size), random_state=random_state)
+    df['mode'] = None
+    df.loc[df['artist_name'].isin(train_artists), 'mode'] = 'train'
+    df.loc[df['artist_name'].isin(val_artists), 'mode'] = 'val'
+    df.loc[df['artist_name'].isin(test_artists), 'mode'] = 'test'
+    
+    return df
+
+
+def main(feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
+    df = split_by_artist_random(df)
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    #val_dataset = TripletLossDataset_features('val', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    #torch.save(val_dataset, f'DATA/Dataset_toload/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    val_dataset = TripletLossDataset_features('val', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
+    torch.save(train_dataset, f'DATA/Dataset_toload/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(val_dataset, f'DATA/Dataset_toload/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
     parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
-    main(args.feature, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+    main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
