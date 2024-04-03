@@ -22,6 +22,14 @@ def clean(df):
     #df['influenced_by'] = df['influenced_by'].apply(lambda x: x.split(', '))
     df['influenced_by'] = df['influenced_by'].apply(lambda x: [i for i in x if i in unique_values])
     df = df[df['influenced_by'].apply(lambda x: len(x) > 0)].reset_index(drop=True)
+
+    all_artist_names = set(df['artist_name'])
+    df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
+    #drop if influenced by is empty
+    df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
+    all_artist_names = set(df['artist_name'])
+    df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
+    df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
     # Fill NaN values in 'col1' with the average of 'col2'
     df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
     return df

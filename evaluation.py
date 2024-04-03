@@ -12,7 +12,8 @@ import os
 
 class Evaluation():
     def __init__(self,df,feature,device,mode):
-        self.try_df_mode = False
+        self.try_df_mode = True
+        self.df = self.remove_influencers_without_examples(df)
         if self.try_df_mode:
             self.df = df
             self.df_mode = df[df['mode'] == mode]
@@ -24,7 +25,11 @@ class Evaluation():
         self.device = device
         self.dict_influence_indexes, self.artist_to_paintings, self.dict_influenced_by = self.get_dictionaries(df)
 
-
+    def remove_influencers_without_examples(self,df):
+        all_artist_names = set(df['artist_name'])
+        df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
+        df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
+        return df
 
     def mean_reciprocal_rank(self,ground_truth, ranked_lists):
         """
@@ -62,23 +67,24 @@ class Evaluation():
             artist = row['artist_name']
             artist_to_paintings.setdefault(artist, []).append(index)
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > 10]
-        artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
-        artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
-        artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
-        artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
-        dict_influenced_by = {key: value for key, value in dict_influenced_by.items() if key in artist_to_influencer_paintings.keys()}
+        # keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > 10]
+        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
+        # artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
+        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
+        # artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
+        # dict_influenced_by = {key: value for key, value in dict_influenced_by.items() if key in artist_to_influencer_paintings.keys()}
 
-        return artist_to_influencer_paintings, artist_to_paintings_new, dict_influenced_by
+        return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
 
     def vector_similarity_search_group(self,query_indexes, index_list,df):
         '''Search for similar vectors in the dataset using faiss library'''
         k = 10 + 1
-        index_list = [i for i in index_list if i < len(self.df)]
-        if index_list != None:
-            xb = torch.stack(df[self.feature].tolist())[index_list]
-        else:
-            xb = torch.stack(df[self.feature].tolist())
+        xb = torch.stack(df[self.feature].tolist())[index_list]
+        #index_list = [i for i in index_list if i < len(self.df)]
+        # if index_list != None:
+        #     xb = torch.stack(df[self.feature].tolist())[index_list]
+        # else:
+        #     xb = torch.stack(df[self.feature].tolist())
         d = xb.shape[1]
         index = faiss.IndexFlatL2(d)
         if xb.shape[0] < 1000:
@@ -133,7 +139,7 @@ class Evaluation():
                 else:
                     no_index_list = self.artist_to_paintings[artist]
                     index_date_higher = self.df[self.df['date'] > group.date.mean() ].index.tolist()
-                    index_list = set(self.df.index) - set(no_index_list) - set(index_date_higher)
+                    index_list = list(set(self.df.index) - set(no_index_list) - set(index_date_higher))
 
                 if len(index_list) > 0:  # Check if index_list is not empty
                     results = self.vector_similarity_search_group(query, index_list, self.df)
@@ -201,13 +207,21 @@ def split_by_strata_artist(df, train_size=0.7, val_size=0.25, test_size=0.05):
     
     return df
 
+def split_by_artist_given(df, artist_name):
+    df['mode'] = None
+    df.loc[df['artist_name'] != artist_name, 'mode'] = 'train'
+    df.loc[df['artist_name'] == artist_name, 'mode'] = 'val'
+    
+    return df   
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
-    df = split_by_strata_artist(df)
+    df = split_by_artist_given(df, 'pablo-picasso')
     mode = 'val'
     #df = df[df['mode'] == mode].reset_index(drop=True)
     features = ['image_features', 'text_features', 'image_text_features']
+    features = ['image_features']
     for feature in features:
         retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree,precisions_dict_result, precisions_dict_result_second_degree= Evaluation(df,feature,device,mode).positive_examples_group()
         IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
@@ -222,7 +236,7 @@ def main():
         print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
         print('---------------------------------------')
         model = TripletResNet_features(df.loc[0,feature].shape[0])
-        trained_models_path = glob('trained_models/ResNet34_newsplit/*', recursive = True)
+        trained_models_path = glob('trained_models/Artists/pablo-picasso/*', recursive = True)
         #trained_models_path = ['trained_models/TripletResNet_image_text_features_posrandom_negrandom_100_margin10']
         for i in trained_models_path:
             if 'TripletResNet_'+feature in i:
