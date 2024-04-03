@@ -54,6 +54,50 @@ class TripletResNet_features(nn.Module):
     
 
 
+def train_artist(model, epochs, train_loader, criterion, optimizer, device, name_model, feature_extractor_name):
+    model.train()
+    running_loss_train = 0.0
+    running_accuracy_train = 0.0
+    loss_plot_train = []
+    accuracy_plot_train = []
+
+    for epoch in range(epochs):
+        for anchor_batch, positive_batch, negative_batch in train_loader:
+            anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
+            optimizer.zero_grad()
+            output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
+            loss = criterion(output1, output2, output3)
+            loss.backward()
+            optimizer.step()
+            running_loss_train += loss.item()
+            accuracy = accuracy_triplet(output1, output2, output3)
+            running_accuracy_train += accuracy
+
+        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {running_loss_train / len(train_loader):.4f}, Train Accuracy: {running_accuracy_train/ len(train_loader)}%")
+
+        wandb.log({"Train Loss": running_loss_train / len(train_loader), "Train Accuracy": running_accuracy_train/ len(train_loader)})
+        loss_plot_train.append(running_loss_train / len(train_loader))
+        accuracy_plot_train.append(running_accuracy_train / len(train_loader))
+        running_loss_train = 0.0
+        running_accuracy_train = 0.0
+
+    if not os.path.exists(f'trained_models/Artists/{feature_extractor_name}/{name_model}'):
+        os.makedirs(f'trained_models/Artists/{feature_extractor_name}/{name_model}')
+    torch.save(model.state_dict(), f'trained_models/Artists/{feature_extractor_name}/{name_model}/model.pth')
+    metrics = {'loss_plot_train': loss_plot_train, 'accuracy_plot_train': accuracy_plot_train}
+    torch.save(metrics, f'trained_models/Artists/{feature_extractor_name}/{name_model}/metrics.pth')
+
+    plt.plot(loss_plot_train, label='Training Loss')
+    plt.plot(accuracy_plot_train, label='Training Accuracy')
+    plt.title('Model Loss and Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss / Accuracy')
+    plt.legend()
+    plt.savefig(f'trained_models/Artists/{feature_extractor_name}/{name_model}/loss_plot.png')
+
+
+
+
 def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,name_model,feature_extractor_name):
     model.train()
     running_loss_train, running_loss_val = 0.0, 0.0
@@ -111,11 +155,6 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
     plt.ylabel('Loss / Accuracy')
     plt.legend()
     plt.savefig(f'trained_models/{feature_extractor_name}/{name_model}/loss_plot.png')
-
-
-
-
-
     
 
 def main(feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
@@ -151,6 +190,36 @@ def main(feature,feature_extractor_name, num_examples,positive_based_on_similari
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
     train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}',feature_extractor_name)
 
+def main_artist(feature,artist_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
+    epochs = wandb.config.epochs
+    lr = wandb.config.learning_rate
+    batch_size = wandb.config.batch_size
+    margin = wandb.config.margin
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+    dataset_train = torch.load(f'DATA/Dataset_toload/Artists/{artist_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+
+    augmentations = [
+    transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
+    transforms.RandomRotation(degrees=10),  # Randomly rotate images by a maximum of 10 degrees
+    transforms.CenterCrop(size=224),  # Randomly crop images to size 224x224
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)  # Randomly adjust brightness, contrast, saturation, and hue
+    ]
+
+    # Define a composite transformation that randomly applies augmentations
+    transform = transforms.Compose([
+        transforms.RandomApply(augmentations, p=0.5),  # Randomly apply augmentations with a probability of 0.5
+        transforms.ToTensor(),  # Convert images to PyTorch tensors
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize the tensor values to range [-1, 1]
+    ])    
+    dataset_train.transform = transform
+    tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
+    net = TripletResNet_features(dataset_train.dimension).to(device)
+    criterion = nn.TripletMarginLoss(margin=margin, p=2)
+    optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
+    train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}',artist_name)
+
 if __name__ == "__main__":
     start_time = time.time() 
 
@@ -176,12 +245,13 @@ if __name__ == "__main__":
     "feature": args.feature,
     "positive_based_on_similarity": args.positive_based_on_similarity,
     "negative_based_on_similarity": args.negative_based_on_similarity,
-    "feature_extractor_name": args.feature_extractor_name
+    "feature_extractor_name": 'pablo-picasso'#args.feature_extractor_name
     }
 
     )
 
-    main(wandb.config.feature,wandb.config.feature_extractor_name, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
+    #main(wandb.config.feature,wandb.config.feature_extractor_name, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
+    main_artist(wandb.config.feature,wandb.config.feature_extractor_name, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))
