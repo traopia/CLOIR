@@ -205,16 +205,15 @@ def main(feature,feature_extractor_name, num_examples, positive_based_on_similar
 def main_artists(feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
     #artists = df['artist_name'].unique()
-    artists = ['pablo-picasso']
-    for artist in artists:
-        df = split_by_artist_given(df, artist)
-        if os.path.exists(f'DATA/Dataset_toload/Artists') == False:
-            os.makedirs(f'DATA/Dataset_toload/Artists')
-        device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-        how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
-        how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-        train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-        torch.save(train_dataset, f'DATA/Dataset_toload/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    artist = feature_extractor_name
+    df = split_by_artist_given(df, artist)
+    if os.path.exists(f'DATA/Dataset_toload/Artists') == False:
+        os.makedirs(f'DATA/Dataset_toload/Artists')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+    train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
+    torch.save(train_dataset, f'DATA/Dataset_toload/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
