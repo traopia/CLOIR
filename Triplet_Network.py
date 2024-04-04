@@ -81,11 +81,11 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, name
         running_loss_train = 0.0
         running_accuracy_train = 0.0
 
-    if not os.path.exists(f'trained_models/Artists/{feature_extractor_name}/{name_model}'):
-        os.makedirs(f'trained_models/Artists/{feature_extractor_name}/{name_model}')
-    torch.save(model.state_dict(), f'trained_models/Artists/{feature_extractor_name}/{name_model}/model.pth')
+    if not os.path.exists(f'trained_models/Artists/{feature_extractor_name}_{name_model}'):
+        os.makedirs(f'trained_models/Artists/{feature_extractor_name}_{name_model}')
+    torch.save(model.state_dict(), f'trained_models/Artists/{feature_extractor_name}_{name_model}/model.pth')
     metrics = {'loss_plot_train': loss_plot_train, 'accuracy_plot_train': accuracy_plot_train}
-    torch.save(metrics, f'trained_models/Artists/{feature_extractor_name}/{name_model}/metrics.pth')
+    torch.save(metrics, f'trained_models/Artists/{feature_extractor_name}_{name_model}/metrics.pth')
 
     plt.plot(loss_plot_train, label='Training Loss')
     plt.plot(accuracy_plot_train, label='Training Accuracy')
@@ -93,7 +93,7 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, name
     plt.xlabel('Epoch')
     plt.ylabel('Loss / Accuracy')
     plt.legend()
-    plt.savefig(f'trained_models/Artists/{feature_extractor_name}/{name_model}/loss_plot.png')
+    plt.savefig(f'trained_models/Artists/{feature_extractor_name}_{name_model}/loss_plot.png')
 
 
 
@@ -198,7 +198,7 @@ def main_artist(feature,artist_name, num_examples,positive_based_on_similarity, 
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/Artists/{artist_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_train = torch.load(f'DATA/Dataset_toload/Artists/{artist_name}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
     augmentations = [
     transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
@@ -225,6 +225,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train Triplet Loss Contrastive Network on Wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
     parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
@@ -249,9 +250,10 @@ if __name__ == "__main__":
     }
 
     )
-
-    #main(wandb.config.feature,wandb.config.feature_extractor_name, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
-    main_artist(wandb.config.feature,wandb.config.feature_extractor_name, wandb.config.num_examples,wandb.config.positive_based_on_similarity, wandb.config.negative_based_on_similarity)
+    if args.artist_splits:
+        main_artist(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+    else:
+        main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))

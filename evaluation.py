@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch
 from glob import glob
 import os
+import argparse
 
 class Evaluation():
     def __init__(self,df,feature,device,mode):
@@ -17,6 +18,7 @@ class Evaluation():
         if self.try_df_mode:
             self.df = df
             self.df_mode = df[df['mode'] == mode]
+            self.df_mode = self.df_mode.copy()
         else:
             self.df = df[df['mode'] == mode].reset_index(drop=True)
 
@@ -114,10 +116,10 @@ class Evaluation():
         search_among_influencers = False
         if self.try_df_mode:
             grouped = self.df_mode.groupby('artist_name')
-            self.df_mode[f'pos_ex_{self.feature}'] = [None]*len(self.df_mode)
+            self.df_mode.loc[:,f'pos_ex_{self.feature}'] = [None]*len(self.df_mode)
         else:
             grouped = self.df.groupby('artist_name')
-            self.df[f'pos_ex_{self.feature}'] = [None]*len(self.df)
+            self.df.loc[:,f'pos_ex_{self.feature}'] = [None]*len(self.df)
         precision_at_k_artist, precision_at_k_artist_second_degree = {}, {}
         precisions_dict_result, precisions_dict_result_second_degree = {}, {}
         mrr_artist, mrr_artist_second_degree = {}, {}
@@ -214,10 +216,11 @@ def split_by_artist_given(df, artist_name):
     
     return df   
 
-def main():
+def main(artist_splits,feature_extractor_name):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
-    df = split_by_artist_given(df, 'pablo-picasso')
+    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+    if artist_splits:
+        df = split_by_artist_given(df, 'pablo-picasso')
     mode = 'val'
     #df = df[df['mode'] == mode].reset_index(drop=True)
     features = ['image_features', 'text_features', 'image_text_features']
@@ -236,7 +239,7 @@ def main():
         print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
         print('---------------------------------------')
         model = TripletResNet_features(df.loc[0,feature].shape[0])
-        trained_models_path = glob('trained_models/Artists/pablo-picasso/*', recursive = True)
+        trained_models_path = glob(f'trained_models/{feature_extractor_name}/*', recursive = True)
         #trained_models_path = ['trained_models/TripletResNet_image_text_features_posrandom_negrandom_100_margin10']
         for i in trained_models_path:
             if 'TripletResNet_'+feature in i:
@@ -260,7 +263,11 @@ def main():
                 torch.save(IR_metrics, f'{i}/IR_metrics/metrics_{mode}.pth')
 if __name__ == '__main__':
     start_time = time.time() 
-    main()
+    parser = argparse.ArgumentParser(description="Evaluation of the model under IR task")
+    parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
+    parser.add_argument('--feature_extractor_name', type=str, default='Artists', help='Name of the feature extractor model: Artists, ResNet34')
+    args = parser.parse_args()
+    main(args.artist_splits,args.feature_extractor_name)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))
