@@ -208,25 +208,28 @@ def main_artists(feature,feature_extractor_name, num_examples, positive_based_on
     artists = ['pablo-picasso']
     for artist in artists:
         df = split_by_artist_given(df, artist)
-        if os.path.exists(f'DATA/Dataset_toload/Artists/{artist}') == False:
-            os.makedirs(f'DATA/Dataset_toload/Artists/{artist}')
+        if os.path.exists(f'DATA/Dataset_toload/Artists') == False:
+            os.makedirs(f'DATA/Dataset_toload/Artists')
         device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
         how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
         how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
         train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-        torch.save(train_dataset, f'DATA/Dataset_toload/Artists/{artist}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+        torch.save(train_dataset, f'DATA/Dataset_toload/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
     parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
+    parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
     parser.add_argument('--feature_extractor_name', type=str, default = 'PabloPicasso', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
-    #main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
-    main_artists(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+    if args.artist_splits:
+        main_artists(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+    else:
+        main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
