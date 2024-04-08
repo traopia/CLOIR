@@ -183,41 +183,49 @@ def split_by_artist_given(df, artist_name):
     
     return df   
 
-def main(feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+def main(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+    if dataset_name == 'wikiart':
+        df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+    elif dataset_name == 'fashion':
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+        
     if feature_extractor_name == "Random_artist_split":
         df = split_by_artist_random(df)
     elif feature_extractor_name == "ResNet34_newsplit":
         df = split_by_strata_artist(df)
 
    
-    if os.path.exists(f'DATA/Dataset_toload/{feature_extractor_name}') == False:
-        os.makedirs(f'DATA/Dataset_toload/{feature_extractor_name}')
+    if os.path.exists(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}') == False:
+        os.makedirs(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}')
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
     val_dataset = TripletLossDataset_features('val', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    torch.save(val_dataset, f'DATA/Dataset_toload/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(train_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(val_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
 
-def main_artists(feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+def main_artists(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+    if dataset_name == 'wikiart':
+        df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+    elif dataset_name == 'fashion':
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
     #artists = df['artist_name'].unique()
     artist = feature_extractor_name
     df = split_by_artist_given(df, artist)
-    if os.path.exists(f'DATA/Dataset_toload/Artists') == False:
-        os.makedirs(f'DATA/Dataset_toload/Artists')
+    if os.path.exists(f'DATA/Dataset_toload/{dataset_name}/Artists') == False:
+        os.makedirs(f'DATA/Dataset_toload/{dataset_name}/Artists')
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(train_dataset, f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
 if __name__ == "__main__":
     start_time = time.time() 
     parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
+    parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
     parser.add_argument('--feature_extractor_name', type=str, default = 'PabloPicasso', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
@@ -226,9 +234,9 @@ if __name__ == "__main__":
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
     if args.artist_splits:
-        main_artists(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main_artists(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     else:
-        main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
