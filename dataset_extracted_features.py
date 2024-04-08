@@ -31,14 +31,14 @@ def clean(df):
     df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
     df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
     # Fill NaN values in 'col1' with the average of 'col2'
-    df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
+    #df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
     return df
 
 
 def image_features(image_path,general_path,device):
     #34 or 152
-    weights = models.ResNet152_Weights.DEFAULT
-    resnet = models.resnet152(weights=weights)
+    weights = models.ResNet34_Weights.DEFAULT
+    resnet = models.resnet34(weights=weights)
     resnet = resnet.to(device)
     resnet = torch.nn.Sequential(*(list(resnet.children())[:-1]))
 
@@ -101,12 +101,14 @@ def get_text_features(df, device):
 
 
 
-def preprocess_data(df,general_path,dataset_outpath, device):
+def preprocess_data(df,general_path,dataset_outpath, dataset_name, device):
     '''Preprocess the data and save it as a pickle file'''
-
-    #df['text_features'] = get_text_features(df,device)
-    df['image_features'] = get_image_features(df,general_path, device)
-    df['image_text_features'] = df.apply(lambda x: torch.cat([x['image_features'], x['text_features']]), axis=1)
+    if dataset_name == 'wikiart':
+        df['text_features'] = get_text_features(df,device)
+        df['image_features'] = get_image_features(df,general_path, device)
+        df['image_text_features'] = df.apply(lambda x: torch.cat([x['image_features'], x['text_features']]), axis=1)
+    elif dataset_name == 'idesigner':
+        df['image_features'] = get_image_features(df,general_path, device)
 
     df.to_pickle(dataset_outpath)
 
@@ -114,17 +116,26 @@ def preprocess_data(df,general_path,dataset_outpath, device):
 
 
 
-def main():
+def main(dataset_name):
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist.pkl')
+    if dataset_name == 'wikiart':
+        df_path = 'DATA/Dataset/wikiart_full_combined_no_artist.pkl'
+        dataset_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/' #'wikiart/'
+        output_path = 'DATA/Dataset/wikiart_full_combined_resnet152.pkl'
+
+    elif dataset_name == 'idesigner':
+        df_path = 'DATA/Dataset/iDesigner/idesigner_influences_cropped.pkl'
+        dataset_path = 'DATA/Dataset/iDesigner/designer_image_train_v2_cropped/'
+        output_path = 'DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl'
+
+    df = pd.read_pickle(df_path)
     df = clean(df)
-    general_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/' #'wikiart/'
-    dataset_outpath = 'DATA/Dataset/wikiart_full_combined_resnet152.pkl'
-    preprocess_data(df,general_path,dataset_outpath,device)
+    preprocess_data(df,dataset_path,output_path,dataset_name, device)
 
 if __name__ == '__main__':
     start_time = time.time() 
-    main()
+    dataset_name = 'idesigner'
+    main(dataset_name)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))

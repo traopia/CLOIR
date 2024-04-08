@@ -54,7 +54,7 @@ class TripletResNet_features(nn.Module):
     
 
 
-def train_artist(model, epochs, train_loader, criterion, optimizer, device, name_model, feature_extractor_name):
+def train_artist(model, epochs, train_loader, criterion, optimizer, device, trained_model_path):
     model.train()
     running_loss_train = 0.0
     running_accuracy_train = 0.0
@@ -81,11 +81,11 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, name
         running_loss_train = 0.0
         running_accuracy_train = 0.0
 
-    if not os.path.exists(f'trained_models/Artists/{feature_extractor_name}_{name_model}'):
-        os.makedirs(f'trained_models/Artists/{feature_extractor_name}_{name_model}')
-    torch.save(model.state_dict(), f'trained_models/Artists/{feature_extractor_name}_{name_model}/model.pth')
+    if not os.path.exists(trained_model_path):
+        os.makedirs(trained_model_path)
+    torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
     metrics = {'loss_plot_train': loss_plot_train, 'accuracy_plot_train': accuracy_plot_train}
-    torch.save(metrics, f'trained_models/Artists/{feature_extractor_name}_{name_model}/metrics.pth')
+    torch.save(metrics, f'{trained_model_path}/metrics.pth')
 
     plt.plot(loss_plot_train, label='Training Loss')
     plt.plot(accuracy_plot_train, label='Training Accuracy')
@@ -93,12 +93,12 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, name
     plt.xlabel('Epoch')
     plt.ylabel('Loss / Accuracy')
     plt.legend()
-    plt.savefig(f'trained_models/Artists/{feature_extractor_name}_{name_model}/loss_plot.png')
+    plt.savefig(f'{trained_model_path}/loss_plot.png')
 
 
 
 
-def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,name_model,feature_extractor_name):
+def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,trained_model_path):
     model.train()
     running_loss_train, running_loss_val = 0.0, 0.0
     running_accuracy_train, running_accuracy_val = 0.0, 0.0
@@ -140,11 +140,11 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
         running_accuracy_train, running_accuracy_val = 0.0, 0.0
  
 
-    if os.path.exists(f'trained_models/{feature_extractor_name}/{name_model}') == False:
-        os.makedirs(f'trained_models/{feature_extractor_name}/{name_model}')
-    torch.save(model.state_dict(), f'trained_models/{feature_extractor_name}/{name_model}/model.pth')
+    if os.path.exists(trained_model_path) == False:
+        os.makedirs(trained_model_path)
+    torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
     metrics = {'loss_plot_train': loss_plot_train, 'loss_plot_val': loss_plot_val, 'accuracy_plot_train': accuracy_plot_train, 'accuracy_plot_val': accuracy_plot_val}
-    torch.save(metrics, f'trained_models/{feature_extractor_name}/{name_model}/metrics.pth')
+    torch.save(metrics, f'{trained_model_path}/metrics.pth')
 
     plt.plot(loss_plot_train, label='Training Loss')
     plt.plot(loss_plot_val, label='Validation Loss')
@@ -154,10 +154,10 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,n
     plt.xlabel('Epoch')
     plt.ylabel('Loss / Accuracy')
     plt.legend()
-    plt.savefig(f'trained_models/{feature_extractor_name}/{name_model}/loss_plot.png')
+    plt.savefig(f'{trained_model_path}/loss_plot.png')
     
 
-def main(feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
+def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
     epochs = wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
@@ -165,8 +165,8 @@ def main(feature,feature_extractor_name, num_examples,positive_based_on_similari
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
+    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
 
     augmentations = [
     transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
@@ -188,9 +188,10 @@ def main(feature,feature_extractor_name, num_examples,positive_based_on_similari
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}',feature_extractor_name)
+    trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
+    train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, trained_model_path)
 
-def main_artist(feature,artist_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
+def main_artist(dataset_name, feature,artist_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
     epochs = wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
@@ -198,7 +199,7 @@ def main_artist(feature,artist_name, num_examples,positive_based_on_similarity, 
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/Artists/{artist_name}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist_name}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
 
     augmentations = [
     transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
@@ -218,12 +219,14 @@ def main_artist(feature,artist_name, num_examples,positive_based_on_similarity, 
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, f'TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}',artist_name)
+    trained_model_path = f'trained_models/{dataset_name}/Artists/{artist_name}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
+    train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
 
 if __name__ == "__main__":
     start_time = time.time() 
 
     parser = argparse.ArgumentParser(description="Train Triplet Loss Contrastive Network on Wikiart to predict influence.")
+    parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
     parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
@@ -240,20 +243,20 @@ if __name__ == "__main__":
     "architecture": "Triplet Network",
     "dataset": "Wikiart",
     "batch_size": 32,
-    "epochs": 10,
+    "epochs": 30,
     "margin": 2, 
     "num_examples": args.num_examples,
     "feature": args.feature,
     "positive_based_on_similarity": args.positive_based_on_similarity,
     "negative_based_on_similarity": args.negative_based_on_similarity,
-    "feature_extractor_name": 'pablo-picasso'#args.feature_extractor_name
+    "feature_extractor_name": args.feature_extractor_name
     }
 
     )
     if args.artist_splits:
-        main_artist(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main_artist(args.dataset_name, args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     else:
-        main(args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))
