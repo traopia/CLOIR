@@ -144,7 +144,7 @@ class Evaluation():
                         index_date_higher = self.df[self.df['date'] > group.date.mean() ].index.tolist()
                         index_list = list(set(self.df.index) - set(no_index_list) - set(index_date_higher))
                     elif self.dataset_name == "fashion":
-                        if self.df[self.df['artist_name']==artist].reset_index().influenced_by[0][0] == artist:
+                        if self.df[self.df['artist_name']==artist].reset_index().influenced_by[0][0] == artist and len(self.df[self.df['artist_name']==artist].reset_index().influenced_by[0])==1:
                             index_list = list(set(self.df.index))
                         else:
                             index_list = list(set(self.df.index) - set(no_index_list))
@@ -229,10 +229,10 @@ def split_by_artist_given(df, artist_name):
     
     return df   
 
-def main(dataset_name,artist_splits,feature_extractor_name):
+def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity,artist_splits):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
 
@@ -244,8 +244,11 @@ def main(dataset_name,artist_splits,feature_extractor_name):
         df = split_by_strata_artist(df)
     mode = 'val'
     #df = df[df['mode'] == mode].reset_index(drop=True)
-    features = ['image_features', 'text_features', 'image_text_features']
-    features = ['image_features']
+    if artist_splits:
+        features = ['image_features']
+    else:
+        features = ['image_features', 'text_features', 'image_text_features']
+    features = [feature]
     for feature in features:
         if artist_splits:
             print(f'BASELINE METRIC with {feature} for  {artist_name}')
@@ -264,8 +267,11 @@ def main(dataset_name,artist_splits,feature_extractor_name):
 
         model = TripletResNet_features(df.loc[0,feature].shape[0])
  
-        trained_models_path = glob(f'trained_models/{dataset_name}/{feature_extractor_name}/*', recursive = True)
-        #trained_models_path = ['trained_models/TripletResNet_image_text_features_posrandom_negrandom_100_margin10']
+        #trained_models_path = glob(f'trained_models/{dataset_name}/{feature_extractor_name}/*', recursive = True)
+        how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+        how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+        margin = 1
+        trained_models_path = [f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}']
         for i in trained_models_path:
             if (artist_splits and artist_name + '_TripletResNet_' + feature in i) or (not artist_splits and 'TripletResNet_' + feature in i):
             #if 'TripletResNet_'+feature in i:
@@ -288,10 +294,14 @@ if __name__ == '__main__':
     start_time = time.time() 
     parser = argparse.ArgumentParser(description="Evaluation of the model under IR task")
     parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
+    parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
-    parser.add_argument('--feature_extractor_name', type=str, default='Artists', help='Name of the feature extractor model: Artists, ResNet34')
+    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
+    parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
+    parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
-    main(args.dataset_name, args.artist_splits,args.feature_extractor_name)
+    main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity, args.artist_splits)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))

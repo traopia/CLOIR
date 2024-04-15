@@ -244,7 +244,7 @@ if __name__ == "__main__":
     "dataset": "Wikiart",
     "batch_size": 32,
     "epochs": 30,
-    "margin": 2, 
+    "margin": 1, 
     "num_examples": args.num_examples,
     "feature": args.feature,
     "positive_based_on_similarity": args.positive_based_on_similarity,

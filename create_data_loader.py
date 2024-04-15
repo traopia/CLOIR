@@ -208,7 +208,7 @@ def main(dataset_name,feature,feature_extractor_name, num_examples, positive_bas
 
 def main_artists(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
     #artists = df['artist_name'].unique()
