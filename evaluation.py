@@ -235,6 +235,7 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+        df = split_by_strata_artist(df)
 
     if artist_splits:
         artist_name = feature_extractor_name
@@ -243,52 +244,43 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     if feature_extractor_name == "ResNet34_newsplit":
         df = split_by_strata_artist(df)
     mode = 'val'
-    #df = df[df['mode'] == mode].reset_index(drop=True)
     if artist_splits:
-        features = ['image_features']
+        print(f'BASELINE METRIC with {feature} for  {artist_name}')
     else:
-        features = ['image_features', 'text_features', 'image_text_features']
-    features = [feature]
-    for feature in features:
-        if artist_splits:
-            print(f'BASELINE METRIC with {feature} for  {artist_name}')
-        else:
-            print(f'BASELINE METRIC with {feature}')
+        print(f'BASELINE METRIC with {feature}')
+    
+    if os.path.exists(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics') == False:
+        os.makedirs(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics')
         retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree,precisions_dict_result, precisions_dict_result_second_degree= Evaluation(dataset_name, df,feature,device,mode).positive_examples_group()
 
         IR_metrics_baseline = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
-        if os.path.exists(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics') == False:
-            os.makedirs(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics')
-        if artist_splits:
-            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{artist_name}_{feature}.pth')
+
+        if artist_splits:     
+            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{artist_name}_{feature}_{mode}.pth')
         else:
-            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{feature}.pth')
-        
+            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{feature}_{mode}.pth')
 
-        model = TripletResNet_features(df.loc[0,feature].shape[0])
- 
-        #trained_models_path = glob(f'trained_models/{dataset_name}/{feature_extractor_name}/*', recursive = True)
-        how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
-        how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-        margin = 1
-        trained_models_path = [f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}']
-        for i in trained_models_path:
-            if (artist_splits and artist_name + '_TripletResNet_' + feature in i) or (not artist_splits and 'TripletResNet_' + feature in i):
-            #if 'TripletResNet_'+feature in i:
-            #if 'TripletResNet_' + feature in i and i.find('100') > i.find('TripletResNet_' + feature): #
-                print(f'Features with model {i}')
-                model_path = i + '/model.pth'
-                model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-                model.eval()
-                df[f'trained_{i}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-                retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree ,precisions_dict_result, precisions_dict_result_second_degree = Evaluation(dataset_name,df,f'trained_{i}',device,mode).positive_examples_group()
-                IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
+    model = TripletResNet_features(df.loc[0,feature].shape[0])
+    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+    margin = 1
+    if artist_splits:
+        trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/{artist_name}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
+    else:
+        trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
+        #trained_model_path = f'trained_models/wikiart/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
+    print(f'Features with model {trained_model_path}')
+    model_path = trained_model_path + '/model.pth'
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model.eval()
+    df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
+    retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree ,precisions_dict_result, precisions_dict_result_second_degree = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).positive_examples_group()
+    IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
 
-            
 
-                if os.path.exists(f'{i}/IR_metrics') == False:
-                    os.makedirs(f'{i}/IR_metrics')
-                torch.save(IR_metrics, f'{i}/IR_metrics/metrics_{mode}.pth')
+    if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
+        os.makedirs(f'{trained_model_path}/IR_metrics')
+    torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
 
 if __name__ == '__main__':
     start_time = time.time() 
