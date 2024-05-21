@@ -17,6 +17,12 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import random
 random.seed(42)
 
+torch.manual_seed(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
+
+
+
 
 
 class TripletResNet_features(nn.Module):
@@ -195,12 +201,11 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
     dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
-
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)#, weight_decay=1e-5)
 
     trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
     train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, trained_model_path)
