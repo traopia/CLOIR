@@ -69,24 +69,12 @@ class Evaluation():
             artist = row['artist_name']
             artist_to_paintings.setdefault(artist, []).append(index)
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        # keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > 10]
-        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
-        # artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
-        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
-        # artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
-        # dict_influenced_by = {key: value for key, value in dict_influenced_by.items() if key in artist_to_influencer_paintings.keys()}
-
         return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
 
     def vector_similarity_search_group(self,query_indexes, index_list,df):
         '''Search for similar vectors in the dataset using faiss library'''
         k = 10 + 1
         xb = torch.stack(df[self.feature].tolist())[index_list]
-        #index_list = [i for i in index_list if i < len(self.df)]
-        # if index_list != None:
-        #     xb = torch.stack(df[self.feature].tolist())[index_list]
-        # else:
-        #     xb = torch.stack(df[self.feature].tolist())
         d = xb.shape[1]
         index = faiss.IndexFlatL2(d)
         if xb.shape[0] < 1000:
@@ -234,8 +222,9 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
-        df = split_by_strata_artist(df)
+        if feature_extractor_name == "ResNet34_newsplit":
+            if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
 
     if artist_splits:
         artist_name = feature_extractor_name

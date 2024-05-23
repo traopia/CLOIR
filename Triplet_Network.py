@@ -22,16 +22,13 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(42)
 
 
-
-
-
 class TripletResNet_features(nn.Module):
     def __init__(self, input_size):
         super(TripletResNet_features, self).__init__()
 
         hidden_size_1 = input_size//2
         hidden_size_2 = hidden_size_1//2
-        output_size = input_size #hidden_size_2//2 #
+        output_size =  hidden_size_2//2 #128 
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size_1),
             nn.ReLU(),
@@ -120,7 +117,7 @@ def train(model, epochs, train_loader, val_loader, criterion, optimizer, device,
     model.train()
     loss_plot_train, loss_plot_val = [], []
     best_val_loss = float('inf')
-    patience = 5  # Number of epochs to wait for improvement before early stopping
+    patience = 10 # Number of epochs to wait for improvement before early stopping
     early_stopping_counter = 0
 
     for epoch in range(epochs):
@@ -200,12 +197,12 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)#, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
     trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
     train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, trained_model_path)
