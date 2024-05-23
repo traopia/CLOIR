@@ -1,8 +1,12 @@
 from matplotlib import pyplot as plt
 from PIL import Image
-general_image_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/'
-def plot_examples(query, positive_indexes, df):
+
+def plot_examples(dataset_name, query, positive_indexes, df):
     # Plot single image
+    if dataset_name == 'wikiart':
+        general_image_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/'
+    elif dataset_name == 'fashion':
+        general_image_path = 'DATA/Dataset/iDesigner/designer_image_train_v2_cropped/'
     plt.figure(figsize=(10, 5))
     plt.imshow(Image.open(general_image_path + df.loc[query].relative_path))
     plt.axis('off')
