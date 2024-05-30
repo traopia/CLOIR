@@ -1,9 +1,10 @@
 # Influence beyond similarity: How influence between agents can help to suggest influence between objects
 We introduce an approach to suggest the existence of influence relations between objects, having access to information about influence between their agents. 
-The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. An overview of the approach is shown below. 
+The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. An ![overview](images/method.pdf) of the approach is provided.
+
 
 We test the approach with two datasets: Wikiart and iDesigner. The corresponding influence graphs used for the experiments are attached in the repo. 
-![alt text](http://url/to/img.png)
+
 
 # Dataset
 1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart] (https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737). 
