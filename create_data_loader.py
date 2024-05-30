@@ -8,6 +8,7 @@ import time
 import os
 import argparse
 from collections import Counter
+from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -19,6 +20,7 @@ class TripletLossDataset_features(Dataset):
         self.feature = feature
         self.num_examples = num_examples
         self.device = device
+        self.keep_without_influencers = True
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
@@ -40,7 +42,10 @@ class TripletLossDataset_features(Dataset):
     def remove_influencers_without_examples(self,df):
         all_artist_names = set(df['artist_name'])
         df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
-        df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
+        if self.keep_without_influencers:
+            df['influenced_by'] = df.apply(lambda row: [row['artist_name']] if len(row['influenced_by']) == 0 else row['influenced_by'], axis=1)
+        else:
+            df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
         return df
 
     def get_dictionaries(self):
@@ -59,6 +64,14 @@ class TripletLossDataset_features(Dataset):
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
         return artist_to_influencer_paintings, artist_to_paintings, dict_influencers
     
+    def get_dictionaries(self):
+        dict_influenced_by = self.df_mode.groupby('artist_name')['influenced_by'].first().to_dict()
+        artist_to_paintings = {}
+        for index, row in self.df.iterrows():
+            artist = row['artist_name']
+            artist_to_paintings.setdefault(artist, []).append(index)
+        artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
+        return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
 
     def vector_similarity_search_group(self,query_indexes, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
@@ -112,12 +125,6 @@ class TripletLossDataset_features(Dataset):
             else:
                 remaining_index_list = list(set(list(self.df.index)) - set(index_list) - set(artist_indexes))
             if self.negative_similarity_based:
-                # indexes = query.extend(remaining_index_list)
-                # print(indexes, query)
-                # features = torch.stack(self.df[self.feature].tolist())[indexes]
-                # print(features.shape)
-                # similarity = cosine_similarity(features)
-                # results =  np.argpartition(similarity[: len(query)], 10, axis=1)[:, :10]
                 results = self.vector_similarity_search_group(query, remaining_index_list)
                 for i,q in enumerate(query):
                     self.df.at[q,f'neg_ex_{self.feature}'] = results[i]
@@ -174,82 +181,15 @@ class TripletLossDataset_features(Dataset):
 
         return img_anchor, img_pos, img_neg
 
-from sklearn.model_selection import train_test_split
-def split_by_strata_artist(df, train_size=0.7):
-    df['mode'] = None
-    for artist_name, group in df.groupby('artist_name'):
-        train_indices, val_indices = train_test_split(group.index, train_size=train_size, random_state=42)    
-        df.loc[train_indices, 'mode'] = 'train'
-        df.loc[val_indices, 'mode'] = 'val'
 
-    
-    return df
-
-from sklearn.metrics.pairwise import cosine_similarity
-
-def split_by_strata_artist_designer(df, train_size=0.7):
-    features = df['image_features'].to_numpy()
-    features = np.stack(features)
-    features = torch.tensor(features)
-    similarity_matrix = cosine_similarity(features)
-    n = len(similarity_matrix)
-    similarity_matrix = similarity_matrix - np.identity(n)
-    df['mode'] = None
-    
-    for artist_name, group in df.groupby('artist_name'):
-        train_indices, val_indices = train_test_split(group.index, train_size=train_size, random_state=42)
-
-        
-        df.loc[train_indices, 'mode'] = 'train'
-        df.loc[val_indices, 'mode'] = 'val'
-    
-    id_map = df.index.to_list()
-    all_similar_images = []
-    for idx, sample in enumerate(df.iterrows()):
-        #for each image, find the most similar images above a certain threshold
-        threshold = 0.95
-        similar_images = np.where(similarity_matrix[idx] > threshold)[0]
-        similar_images = [id_map[x] for x in similar_images]
-        if len(similar_images) > 1:
-            all_similar_images.append(similar_images)
-            if df.loc[similar_images[0], 'mode'] == 'train':
-                #all similar images are in the same split
-                for i in similar_images:
-                    df.loc[i, 'mode'] = 'train'
-            else:
-                df.loc[similar_images[1], 'mode'] = 'val'
-                for i in similar_images:
-                    df.loc[i, 'mode'] = 'val'
-
-    
-    
-    return df
-
-
-
-def split_by_artist_random(df, train_size=0.7, val_size=0.25, test_size=0.05, random_state=55):
-    unique_artists = df['artist_name'].unique()
-    train_artists, remaining_artists = train_test_split(unique_artists, train_size=train_size, random_state=random_state)
-    val_artists, test_artists = train_test_split(remaining_artists, train_size=val_size/(val_size+test_size), random_state=random_state)
-    df['mode'] = None
-    df.loc[df['artist_name'].isin(train_artists), 'mode'] = 'train'
-    df.loc[df['artist_name'].isin(val_artists), 'mode'] = 'val'
-    df.loc[df['artist_name'].isin(test_artists), 'mode'] = 'test'
-    
-    return df
-
-def split_by_artist_given(df, artist_name):
-    df['mode'] = None
-    df.loc[df['artist_name'] != artist_name, 'mode'] = 'train'
-    df.loc[df['artist_name'] == artist_name, 'mode'] = 'val'
-    
-    return df   
 
 def main(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
         if feature_extractor_name == "ResNet34_newsplit":
             df = split_by_strata_artist(df)
+        elif feature_extractor_name == "random_artists":
+            df = split_by_artist_random(df)
     elif dataset_name == 'fashion':
         if feature_extractor_name == "ResNet34_newsplit":
             if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
@@ -258,7 +198,9 @@ def main(dataset_name,feature,feature_extractor_name, num_examples, positive_bas
                 df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
                 df = split_by_strata_artist_designer(df)
                 df.to_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
-        
+        elif feature_extractor_name == "random_artists":
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+            df = split_by_artist_random(df)
 
 
 
@@ -280,7 +222,7 @@ def main_artists(dataset_name,feature,feature_extractor_name, num_examples, posi
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
     if feature_extractor_name == 'all':
-        artists = df['artist_name'].unique()[20:]
+        artists = df['artist_name'].unique()
     else:
         artists = [feature_extractor_name]
     for artist in artists:
