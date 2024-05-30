@@ -1,12 +1,14 @@
-# Influence beyond similarity: A Knowledge Based informed model to predict influence between artworks: an Information Retrieval approach
-In this work a method to predict influence between artworks has been introduced.
-In history of art, experts claim that some artists have been influenced by other artist throughout their artistic career. In this work we explore what does that mean at a computational and operational level. We thus introduce a method that suggests which artworks are related by an influence relation, by exploiting a ground truth that operates at artist level.
+# Influence beyond similarity: How influence between agents can help to suggest influence between objects
+We introduce an approach to suggest the existence of influence relations between objects, having access to information about influence between their agents. 
+The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. An overview of the approach is shown below. 
 
+We test the approach with two datasets: Wikiart and iDesigner. The corresponding influence graphs used for the experiments are attached in the repo. 
+![alt text](http://url/to/img.png)
 
 # Dataset
-1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart] (https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737)
+1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart] (https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737). 
 
-2. [iDesigner](https://www.kaggle.com/competitions/idesigner/data): 
+2. [iDesigner](https://www.kaggle.com/competitions/idesigner/data): We use the images contained in DATA/Dataset/iDesigner/designer_image_train_v2_cropped. 
 
 
 
