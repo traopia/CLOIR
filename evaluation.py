@@ -104,6 +104,7 @@ class Evaluation():
             D, I = index.search(query_vector.reshape(1,-1), k)  
             I = [index_list[i] for i in list(I[0])]
             query_date = self.df.at[query, 'date_filled']
+
             self.df_mode.at[query, f'pos_ex_{self.feature}'] = I
         return self.df_mode[f'pos_ex_{self.feature}']
 
@@ -156,6 +157,7 @@ class Evaluation():
             #ground truth
             influencers_list = self.dict_influence_indexes[artist]
             artist_influencers = [j for j in self.dict_influenced_by[artist] if j in self.dict_influence_indexes.keys()]
+            second_degree_influencers = [self.dict_influence_indexes[j] for j in artist_influencers]
             if len(second_degree_influencers) > 0:
                 second_degree_influencers = second_degree_influencers[0] + influencers_list
             else:

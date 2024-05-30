@@ -163,7 +163,7 @@ def print_metrics(dataset_name, viz = True):
                     if viz:
                         if dataset_name == "wikiart":
                             indices = df[(df['mode'] == 'val') & (df['artist_name'] == 'vincent-van-gogh')].index.tolist()
-                        elif: 
+                        else: 
                             indices = df[(df['mode'] == 'val') & (df['artist_name'] == 'alexander mcqueen')].index.tolist()
                         plot_examples(dataset_name, indices[i],IR_metrics['retrieved_indexes'][indices[i]], df)
                     print('    ')
