@@ -7,30 +7,29 @@ import random
 from Triplet_Network import TripletResNet_features
 import torch.nn as nn
 import torch
-from glob import glob
 import os
 import argparse
+from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random
 
 class Evaluation():
     def __init__(self,dataset_name,df,feature,device,mode):
-        self.try_df_mode = True
-        self.df = self.remove_influencers_without_examples(df)
-        if self.try_df_mode:
-            self.df = df
-            self.df_mode = df[df['mode'] == mode]
-            self.df_mode = self.df_mode.copy()
-        else:
-            self.df = df[df['mode'] == mode].reset_index(drop=True)
-
+        self.keep_without_influencers = True
         self.dataset_name = dataset_name
         self.feature = feature
         self.device = device
-        self.dict_influence_indexes, self.artist_to_paintings, self.dict_influenced_by = self.get_dictionaries(df)
 
+        self.df = self.remove_influencers_without_examples(df)
+        self.df_mode = self.df[self.df['mode'] == mode].copy()
+        self.dict_influence_indexes, self.artist_to_paintings, self.dict_influenced_by = self.get_dictionaries()
+
+    
     def remove_influencers_without_examples(self,df):
         all_artist_names = set(df['artist_name'])
         df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
-        df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
+        if self.keep_without_influencers:
+            df['influenced_by'] = df.apply(lambda row: [row['artist_name']] if len(row['influenced_by']) == 0 else row['influenced_by'], axis=1)
+        else:
+            df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
         return df
 
     def mean_reciprocal_rank(self,ground_truth, ranked_lists):
@@ -61,32 +60,22 @@ class Evaluation():
             return total_rr / num_queries
         else:
             return 0.0  # Return 0 if there are no queries
+
         
-    def get_dictionaries(self,df):
-        dict_influenced_by = df.groupby('artist_name')['influenced_by'].first().to_dict()
+    def get_dictionaries(self):
+        dict_influenced_by = self.df_mode.groupby('artist_name')['influenced_by'].first().to_dict()
         artist_to_paintings = {}
-        for index, row in df.iterrows():
+        for index, row in self.df.iterrows():
             artist = row['artist_name']
             artist_to_paintings.setdefault(artist, []).append(index)
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        # keys_min_val = [key for key, value in artist_to_influencer_paintings.items() if isinstance(value, list) and len(value) > 10]
-        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key in keys_min_val}
-        # artisit_no_influencers = [k for k, v in artist_to_influencer_paintings.items() if len(v) == 0]
-        # artist_to_influencer_paintings = {key: value for key, value in artist_to_influencer_paintings.items() if key not in artisit_no_influencers}
-        # artist_to_paintings_new = {key: value for key, value in artist_to_paintings.items() if key in artist_to_influencer_paintings.keys()}
-        # dict_influenced_by = {key: value for key, value in dict_influenced_by.items() if key in artist_to_influencer_paintings.keys()}
-
         return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
 
-    def vector_similarity_search_group(self,query_indexes, index_list,df):
+    def vector_similarity_search_group(self,query_indexes, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
         k = 10 + 1
-        xb = torch.stack(df[self.feature].tolist())[index_list]
-        #index_list = [i for i in index_list if i < len(self.df)]
-        # if index_list != None:
-        #     xb = torch.stack(df[self.feature].tolist())[index_list]
-        # else:
-        #     xb = torch.stack(df[self.feature].tolist())
+        xb = torch.stack(self.df.loc[index_list, self.feature].tolist())
+        #xb = torch.stack(self.df.loc[index_list, self.feature].values)
         d = xb.shape[1]
         index = faiss.IndexFlatL2(d)
         if xb.shape[0] < 1000:
@@ -95,200 +84,174 @@ class Evaluation():
             nlist = 10  
             quantizer = faiss.IndexFlatL2(d)
             index = faiss.IndexIVFFlat(quantizer, d, nlist)
-        
         if self.device == 'cuda':
             index = faiss.index_cpu_to_all_gpus(index)
             
         index.train(xb.cpu().numpy() if self.device != 'cuda' else xb)
         index.add(xb.cpu().numpy() if self.device != 'cuda' else xb)
-        results = []
         for query in query_indexes:
             query_vector = self.df[self.feature].tolist()[query]
             D, I = index.search(query_vector.reshape(1,-1), k)  
-            I = list(I[0][1:])   
-            I = [index_list[i] for i in I]
-            results.append(I)
+            #I = list(I[0][1:])   
+            #I = list(I[0])   
+            I = [index_list[i] for i in list(I[0])]
+            print('query',query,'indexes',I)
             
-        return results
 
+            self.df_mode.at[query, f'pos_ex_{self.feature}'] = I[1:]
+        return self.df_mode[f'pos_ex_{self.feature}']
 
-    def positive_examples_group(self):
-        search_among_influencers = False
-        if self.try_df_mode:
-            grouped = self.df_mode.groupby('artist_name')
-            self.df_mode.loc[:,f'pos_ex_{self.feature}'] = [None]*len(self.df_mode)
-        else:
-            grouped = self.df.groupby('artist_name')
-            self.df.loc[:,f'pos_ex_{self.feature}'] = [None]*len(self.df)
+    def metrics_per_query(self, queries, results, influencers_list):
+        p_10_sum, mrr_sum = 0,0
+        precision_dict_list = []
+        for i in queries:
+            p_10 = len([j for j in results[i] if j in influencers_list])/10
+            dict_results = {k: results[i][:k] for k in range(1, len(results[i]) + 1)}
+            dict_influencers_in_results = {key: [value for value in values if value in influencers_list] for key, values in dict_results.items()}
+            precision_dict = {k: len(v)/k for k,v in dict_influencers_in_results.items()}
+
+            mrr = self.mean_reciprocal_rank({i:influencers_list}, {i:results[i]})
+            p_10_sum += p_10
+            mrr_sum += mrr
+            precision_dict_list.append(precision_dict)
+        
+        return p_10_sum,precision_dict_list,mrr_sum
+
+    def retrieval(self):
+        grouped = self.df_mode.groupby('artist_name')
+        self.df_mode.loc[:,f'pos_ex_{self.feature}'] = [None]*len(self.df_mode)
+        for artist, group in grouped:
+            queries = [i for i in list(group.index)]
+            artist_index_list = self.artist_to_paintings[artist]
+            #if agent has as influencer only himself (mostly for idesigner)
+            if self.df_mode[self.df_mode['artist_name']==artist].reset_index().influenced_by[0][0] == artist and len(self.df_mode[self.df_mode['artist_name']==artist].reset_index().influenced_by[0])==1:
+                index_list = set(self.df.index.tolist())
+            else:
+                index_list = list(set(self.df.index.tolist()) - set(artist_index_list))
+            if self.dataset_name == "wikiart": #not consider objects with date higher than the max of the artist grouped
+                index_date_higher = self.df[self.df['date'] >= group['date'].max()].index.tolist()
+                index_list = list(set(index_list) - set(index_date_higher))
+
+            self.df_mode[f'pos_ex_{self.feature}'] = self.vector_similarity_search_group(queries, index_list)
+        return self.df_mode[f'pos_ex_{self.feature}']
+    
+    
+    def evaluate_retrieval(self):
+        precision_at_k_sum , precision_at_k_second_degree_sum, mrr_sum_,mrr_second_degree_sum= 0,0,0,0
         precision_at_k_artist, precision_at_k_artist_second_degree = {}, {}
         precisions_dict_result, precisions_dict_result_second_degree = {}, {}
         mrr_artist, mrr_artist_second_degree = {}, {}
+
+        grouped = self.df_mode.groupby('artist_name')
+        self.df_mode[f'pos_ex_{self.feature}'] = self.retrieval()
+
         for artist, group in grouped:
-            query = list(group.index)
-            query = [i for i in query if i < len(self.df)]
-            if artist in self.dict_influence_indexes:
-                influencers_list = self.dict_influence_indexes[artist]
-                artist_influencers = [j for j in self.dict_influenced_by[artist] if j in self.dict_influence_indexes.keys()]
-                second_degree_influencers = [self.dict_influence_indexes[j] for j in artist_influencers]
-                if len(second_degree_influencers) > 0:
-                    second_degree_influencers = second_degree_influencers[0] + influencers_list
-                else:
-                    second_degree_influencers = influencers_list
+            queries = [i for i in list(group.index)]
+            #ground truth
+            influencers_list = self.dict_influence_indexes[artist]
+            artist_influencers = [j for j in self.dict_influenced_by[artist] if j in self.dict_influence_indexes.keys()]
+            second_degree_influencers = [self.dict_influence_indexes[j] for j in artist_influencers][0] + influencers_list
 
-                if search_among_influencers:
-                    index_list = self.dict_influence_indexes[artist]
-                    index_list = [i for i in index_list if i < len(self.df)]
-                else:
-                    no_index_list = self.artist_to_paintings[artist]
-                    if self.dataset_name == "wikiart":
-                        index_date_higher = self.df[self.df['date'] > group.date.mean() ].index.tolist()
-                        index_list = list(set(self.df.index) - set(no_index_list) - set(index_date_higher))
-                    elif self.dataset_name == "fashion":
-                        if self.df[self.df['artist_name']==artist].reset_index().influenced_by[0][0] == artist and len(self.df[self.df['artist_name']==artist].reset_index().influenced_by[0])==1:
-                            index_list = list(set(self.df.index))
-                        else:
-                            index_list = list(set(self.df.index) - set(no_index_list))
-                    
+            #retrieved metrics
+            p_10_sum, precision_dict_list,mrr_sum= self.metrics_per_query(queries, self.df_mode[f'pos_ex_{self.feature}'],influencers_list )
+            p_10_sum_second,  precision_dict_list_second,mrr_sum_second = self.metrics_per_query(queries, self.df_mode[f'pos_ex_{self.feature}'],second_degree_influencers )
+            precision_at_k_sum += p_10_sum
+            precision_at_k_second_degree_sum += p_10_sum_second
+            mrr_sum_ += mrr_sum   
+            mrr_second_degree_sum += mrr_sum_second          
+            precision_at_k_artist[artist],precision_at_k_artist_second_degree[artist]  = round(p_10_sum/len(queries),3), round(p_10_sum_second/len(queries),3)
+            mrr_artist[artist], mrr_artist_second_degree[artist] = round(mrr_sum/len(queries),3), round(mrr_sum_second/len(queries),3)
 
-                if len(index_list) > 0:  # Check if index_list is not empty
-                    results = self.vector_similarity_search_group(query, index_list, self.df)
-                    precision_at_k, precision_at_k_second_degree = [], []
-                    precisions_dict, precisions_dict_second_degree = [], []
-                    mrr_overall, mrr_overall_second_degree = [], []
-                else:
-                    results = []
-                    precision_at_k, precision_at_k_second_degree = [], []
-                    precisions_dict, precisions_dict_second_degree = [], []
-                    mrr_overall, mrr_overall_second_degree = [], []
+            #precision at different k
+            precisions_dict_result[artist] = {key: round(sum(d[key] for d in precision_dict_list) / len(precision_dict_list),3) for key in precision_dict_list[0]}
+            precisions_dict_result_second_degree[artist] = {key: round(sum(d[key] for d in precision_dict_list_second) / len(precision_dict_list_second),3) for key in precision_dict_list_second[0]}
 
-                for i,q in enumerate(query):
-                    if self.try_df_mode:
-                        self.df_mode.at[q,f'pos_ex_{self.feature}'] = results[i]
-                    else:
-                        self.df.at[q,f'pos_ex_{self.feature}'] = results[i]
-                    influencers_in_results = [j for j in results[i] if j in influencers_list]
-                    dict_results = {k: results[i][:k] for k in range(1, len(results[i]) + 1)}
-                    dict_influencers_in_results = {key: [value for value in values if value in influencers_list] for key, values in dict_results.items()}
-                    precision_dict = {k: len(v)/k for k,v in dict_influencers_in_results.items()}
+ 
+        precision_at_k_mean = round(precision_at_k_sum/len(self.df_mode),3)
+        precision_at_k_second_degree_mean = round(precision_at_k_second_degree_sum/len(self.df_mode),3)
+        mrr_mean = round(mrr_sum_/len(self.df_mode),3)
+        mrr_second_degree_mean = round(mrr_second_degree_sum/len(self.df_mode),3)
 
-                    second_degree_influencers_in_results = [j for j in results[i] if j in second_degree_influencers]
-                    dict_second_degree_influencers_in_results = {key: [value for value in values if value in second_degree_influencers] for key, values in dict_results.items()}
-                    precision_dict_second_degree = {k: len(v)/k for k,v in dict_second_degree_influencers_in_results.items()}
-
-                    mrr = self.mean_reciprocal_rank({q:influencers_list}, {q:results[i]})
-                    mrr_second_degree = self.mean_reciprocal_rank({q:second_degree_influencers}, {q:results[i]})
-
-                    precision_at_k.append(len(influencers_in_results)/10)
-                    mrr_overall.append(mrr)
-                    precisions_dict.append(precision_dict)
-
-                    precision_at_k_second_degree.append(len(second_degree_influencers_in_results)/10)
-                    mrr_overall_second_degree.append(mrr_second_degree)
-                    precisions_dict_second_degree.append(precision_dict_second_degree)
-
-                precision_at_k_artist[artist] = np.mean(precision_at_k)
-                mrr_artist[artist] = np.mean(mrr_overall)
-                precision_at_k_artist_second_degree[artist] = np.mean(precision_at_k_second_degree)
-                mrr_artist_second_degree[artist] = np.mean(mrr_overall_second_degree)
-
-                precisions_dict_result[artist] = {key: sum(d[key] for d in precisions_dict) / len(precisions_dict) for key in precisions_dict[0]}
-                precisions_dict_result_second_degree[artist] = {key: sum(d[key] for d in precisions_dict_second_degree) / len(precisions_dict_second_degree) for key in precisions_dict_second_degree[0]}
-        print(f'Precision at k10 for artist: {np.mean(list(precision_at_k_artist.values()))}, MRR for artist: {np.mean(list(mrr_artist.values()))}')
-        print(f'Precision at k10 for second degree artist: {np.mean(list(precision_at_k_artist_second_degree.values()))}, MRR for second degree artist: {np.mean(list(mrr_artist_second_degree.values()))}')
-        print('Precision at different k:', {inner_key: sum(d[inner_key] for d in precisions_dict_result.values()) / len(precisions_dict_result) for inner_key in precisions_dict_result[next(iter(precisions_dict_result))].keys()})
-        print('Precision at different k for second degree:', {inner_key: sum(d[inner_key] for d in precisions_dict_result_second_degree.values()) / len(precisions_dict_result_second_degree) for inner_key in precisions_dict_result_second_degree[next(iter(precisions_dict_result_second_degree))].keys()})
+        print(f'Precision at k10 for artist: {precision_at_k_mean}, MRR for artist: {mrr_mean}')
+        print(f'Precision at k10 for second degree artist: {precision_at_k_second_degree_mean}, MRR for second degree artist: {mrr_second_degree_mean}')
         print('---------------------------------------')
-        print('                                       ')
+        print(' ')
 
-        if self.try_df_mode:
-            return self.df_mode[f'pos_ex_{self.feature}'], precision_at_k_artist, mrr_artist, precision_at_k_artist_second_degree, mrr_artist_second_degree, precisions_dict_result, precisions_dict_result_second_degree
-        else:
-            return self.df[f'pos_ex_{self.feature}'], precision_at_k_artist, mrr_artist, precision_at_k_artist_second_degree, mrr_artist_second_degree, precisions_dict_result, precisions_dict_result_second_degree
+        IR_metrics = { 'retrieved_indexes': self.df_mode[f'pos_ex_{self.feature}'], 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree,'precision_at_k_mean' : precision_at_k_mean , 'precision_at_k_second_degree_mean': precision_at_k_second_degree_mean, 'mrr_mean': mrr_sum,'mrr_second_degree_mean': mrr_second_degree_mean}
+        return IR_metrics 
+
 
     
 
 
-from sklearn.model_selection import train_test_split
-def split_by_strata_artist(df, train_size=0.7, val_size=0.25, test_size=0.05):
-    df['mode'] = None
-    
-    for artist_name, group in df.groupby('artist_name'):
-        train_indices, val_test_indices = train_test_split(group.index, train_size=train_size, random_state=42)
-        val_indices, test_indices = train_test_split(val_test_indices, train_size=val_size/(val_size+test_size), random_state=42)
-        
-        df.loc[train_indices, 'mode'] = 'train'
-        df.loc[val_indices, 'mode'] = 'val'
-        df.loc[test_indices, 'mode'] = 'test'
-    
-    return df
 
-def split_by_artist_given(df, artist_name):
-    df['mode'] = None
-    df.loc[df['artist_name'] != artist_name, 'mode'] = 'train'
-    df.loc[df['artist_name'] == artist_name, 'mode'] = 'val'
-    
-    return df   
+
 
 def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity,artist_splits):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
+    mode = 'val'
+    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
+    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
+    margin = 1
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        if feature_extractor_name == "ResNet34_newsplit":
+            df = split_by_strata_artist(df)
+        elif feature_extractor_name == "random_artists":
+            df = split_by_artist_random(df)
     elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+        if feature_extractor_name == "ResNet34_newsplit":
+            if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+        elif feature_extractor_name == "random_artists":
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+            df = split_by_artist_random(df)
 
+    model = TripletResNet_features(df.loc[0,feature].shape[0])
     if artist_splits:
-        artist_name = feature_extractor_name
-        feature_extractor_name = 'Artists'
-        df = split_by_artist_given(df, artist_name)
-    if feature_extractor_name == "ResNet34_newsplit":
-        df = split_by_strata_artist(df)
-    mode = 'val'
-    #df = df[df['mode'] == mode].reset_index(drop=True)
-    if artist_splits:
-        features = ['image_features']
-    else:
-        features = ['image_features', 'text_features', 'image_text_features']
-    features = [feature]
-    for feature in features:
-        if artist_splits:
-            print(f'BASELINE METRIC with {feature} for  {artist_name}')
+        if feature_extractor_name == "all":
+            artists = df['artist_name'].unique()
         else:
-            print(f'BASELINE METRIC with {feature}')
-        retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree,precisions_dict_result, precisions_dict_result_second_degree= Evaluation(dataset_name, df,feature,device,mode).positive_examples_group()
+            artists = [feature_extractor_name]
+        for artist in artists:
+            df = split_by_artist_given(df, artist)
+            print(f'BASELINE METRIC with {feature} for  {artist}')
+            if os.path.exists(f'trained_models/{dataset_name}/Artists/baseline_IR_metrics') == False:
+                os.makedirs(f'trained_models/{dataset_name}/Artists/baseline_IR_metrics')
+ 
+            IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
+            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/Artists/baseline_IR_metrics/{artist}_{feature}_{mode}.pth')
+            trained_model_path = f'trained_models/{dataset_name}/Artists/{artist}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_10'
+            print(f'Features with model {trained_model_path}')
+            model_path = trained_model_path + '/model.pth'
+            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+            model.eval()
+            df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
+            IR_metrics = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).evaluate_retrieval()
+            if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
+                os.makedirs(f'{trained_model_path}/IR_metrics')
+            torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
 
-        IR_metrics_baseline = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
+
+
+    else:
+        print(f'BASELINE METRIC with {feature}')
         if os.path.exists(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics') == False:
             os.makedirs(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics')
-        if artist_splits:
-            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{artist_name}_{feature}.pth')
-        else:
-            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{feature}.pth')
-        
+        IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
+        torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{feature}_{mode}.pth')
 
-        model = TripletResNet_features(df.loc[0,feature].shape[0])
- 
-        #trained_models_path = glob(f'trained_models/{dataset_name}/{feature_extractor_name}/*', recursive = True)
-        how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
-        how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-        margin = 1
-        trained_models_path = [f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}']
-        for i in trained_models_path:
-            if (artist_splits and artist_name + '_TripletResNet_' + feature in i) or (not artist_splits and 'TripletResNet_' + feature in i):
-            #if 'TripletResNet_'+feature in i:
-            #if 'TripletResNet_' + feature in i and i.find('100') > i.find('TripletResNet_' + feature): #
-                print(f'Features with model {i}')
-                model_path = i + '/model.pth'
-                model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-                model.eval()
-                df[f'trained_{i}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-                retrieved_indexes, precision_at_k_artist, mrr_artist,precision_at_k_artist_second_degree, mrr_artist_second_degree ,precisions_dict_result, precisions_dict_result_second_degree = Evaluation(dataset_name,df,f'trained_{i}',device,mode).positive_examples_group()
-                IR_metrics = { 'retrieved_indexes': retrieved_indexes, 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree}
-
-            
-
-                if os.path.exists(f'{i}/IR_metrics') == False:
-                    os.makedirs(f'{i}/IR_metrics')
-                torch.save(IR_metrics, f'{i}/IR_metrics/metrics_{mode}.pth')
+   
+        # trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
+        # print(f'Features with model {trained_model_path}')
+        # model_path = trained_model_path + '/model.pth'
+        # model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        # model.eval()
+        # df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
+        # IR_metrics = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).evaluate_retrieval()
+        # if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
+        #     os.makedirs(f'{trained_model_path}/IR_metrics')
+        # torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
 
 if __name__ == '__main__':
     start_time = time.time() 

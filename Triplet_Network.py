@@ -1,26 +1,26 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import ast
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import wandb
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
 from create_data_loader import TripletLossDataset_features
 import time 
 import os
 import argparse
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+import pandas as pd
 
 import random
 random.seed(42)
 
-def accuracy_triplet(anchor_output, positive_output, negative_output):
-    distance_positive = F.pairwise_distance(anchor_output, positive_output)
-    distance_negative = F.pairwise_distance(anchor_output, negative_output)
-    return torch.mean((distance_positive < distance_negative).float()).cpu().numpy()
+torch.manual_seed(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
 
 
 class TripletResNet_features(nn.Module):
@@ -28,25 +28,24 @@ class TripletResNet_features(nn.Module):
         super(TripletResNet_features, self).__init__()
 
         hidden_size_1 = input_size//2
-        hidden_size_2 = input_size//4
+        hidden_size_2 = hidden_size_1//2
+        output_size =  hidden_size_2//2 #128 
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size_1),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(hidden_size_1, hidden_size_2),
-             nn.ReLU(),
+            nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(hidden_size_2,input_size )
+            nn.Linear(hidden_size_2,output_size )
         )
 
 
     def forward_once(self, x):
-        # Pass input through the ResNet
         output = self.model(x)
         return output
 
     def forward(self, anchor, positive, negative):
-        # Forward pass for both images
         anchor_output = self.forward_once(anchor)
         positive_output = self.forward_once(positive)
         negative_output = self.forward_once(negative)
@@ -54,70 +53,29 @@ class TripletResNet_features(nn.Module):
     
 
 
-def train_artist(model, epochs, train_loader, criterion, optimizer, device, trained_model_path):
-    model.train()
-    running_loss_train = 0.0
-    running_accuracy_train = 0.0
-    loss_plot_train = []
-    accuracy_plot_train = []
-
-    for epoch in range(epochs):
-        for anchor_batch, positive_batch, negative_batch in train_loader:
-            anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
-            optimizer.zero_grad()
-            output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
-            loss = criterion(output1, output2, output3)
-            loss.backward()
-            optimizer.step()
-            running_loss_train += loss.item()
-            accuracy = accuracy_triplet(output1, output2, output3)
-            running_accuracy_train += accuracy
-
-        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {running_loss_train / len(train_loader):.4f}, Train Accuracy: {running_accuracy_train/ len(train_loader)}%")
-
-        wandb.log({"Train Loss": running_loss_train / len(train_loader), "Train Accuracy": running_accuracy_train/ len(train_loader)})
-        loss_plot_train.append(running_loss_train / len(train_loader))
-        accuracy_plot_train.append(running_accuracy_train / len(train_loader))
-        running_loss_train = 0.0
-        running_accuracy_train = 0.0
-
-    if not os.path.exists(trained_model_path):
-        os.makedirs(trained_model_path)
-    torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
-    metrics = {'loss_plot_train': loss_plot_train, 'accuracy_plot_train': accuracy_plot_train}
-    torch.save(metrics, f'{trained_model_path}/metrics.pth')
-
-    plt.plot(loss_plot_train, label='Training Loss')
-    plt.plot(accuracy_plot_train, label='Training Accuracy')
-    plt.title('Model Loss and Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss / Accuracy')
-    plt.legend()
-    plt.savefig(f'{trained_model_path}/loss_plot.png')
-
-
 
 
 def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,trained_model_path):
     model.train()
     running_loss_train, running_loss_val = 0.0, 0.0
-    running_accuracy_train, running_accuracy_val = 0.0, 0.0
     loss_plot_train, loss_plot_val = [], []
-    accuracy_plot_train, accuracy_plot_val = [], []
+
 
     for epoch in range(epochs):
         for anchor_batch, positive_batch, negative_batch in train_loader:
             anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
             optimizer.zero_grad()
             output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
+            # batch_size, n_samples, embedding_dim = output1.size()
+            # output1 = output1.view(-1, embedding_dim)
+            # output2 = output2.view(-1, embedding_dim)
+            # output3 = output3.view(-1, embedding_dim)
+
             loss = criterion(output1, output2, output3)
             loss.backward()
             optimizer.step()
             running_loss_train += loss.item()
-            accuracy = accuracy_triplet(output1, output2, output3)
-            running_accuracy_train += accuracy
 
-        print(f"Epoch [{epoch + 1}/{10}], Train Loss: {running_loss_train / len(train_loader):.4f}, Train Accuracy: {running_accuracy_train/ len(train_loader)}%")
 
         model.eval()
         for anchor_batch, positive_batch, negative_batch in val_loader:
@@ -125,37 +83,111 @@ def train(model,epochs, train_loader, val_loader, criterion, optimizer, device,t
             output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
             loss = criterion(output1, output2, output3)
             running_loss_val += loss.item()
-            accuracy = accuracy_triplet(output1, output2, output3)
-            running_accuracy_val += accuracy
 
-        print(f"Epoch [{epoch + 1}/{10}], Val Loss: {running_loss_val / len(val_loader):.4f}, Val Accuracy: {running_accuracy_val/ len(val_loader)}")
 
-        wandb.log({"Train Loss": running_loss_train / len(train_loader), "Val Loss": running_loss_val / len(val_loader), "Train Accuracy": running_accuracy_train/ len(train_loader), "Val Accuracy": running_accuracy_val/ len(val_loader)})
+        print(f"Epoch [{epoch + 1}/{10}],  Train Loss: {running_loss_train / len(train_loader):.4f},Val Loss: {running_loss_val / len(val_loader):.4f}")
+
+        wandb.log({"Train Loss": running_loss_train / len(train_loader), "Val Loss": running_loss_val / len(val_loader)})
         loss_plot_train.append(running_loss_train / len(train_loader))
         loss_plot_val.append(running_loss_val / len(val_loader))
 
-        accuracy_plot_train.append(running_accuracy_train / len(train_loader))
-        accuracy_plot_val.append(running_accuracy_val / len(val_loader))
+
         running_loss_train, running_loss_val = 0.0, 0.0
-        running_accuracy_train, running_accuracy_val = 0.0, 0.0
- 
+
+
 
     if os.path.exists(trained_model_path) == False:
         os.makedirs(trained_model_path)
     torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
-    metrics = {'loss_plot_train': loss_plot_train, 'loss_plot_val': loss_plot_val, 'accuracy_plot_train': accuracy_plot_train, 'accuracy_plot_val': accuracy_plot_val}
+    metrics = {'loss_plot_train': loss_plot_train, 'loss_plot_val': loss_plot_val}
     torch.save(metrics, f'{trained_model_path}/metrics.pth')
 
     plt.plot(loss_plot_train, label='Training Loss')
     plt.plot(loss_plot_val, label='Validation Loss')
-    plt.plot(accuracy_plot_train, label='Training Accuracy')
-    plt.plot(accuracy_plot_val, label='Validation Accuracy')
-    plt.title('Model Loss and Accuracy')
+
+    plt.title('Model Loss')
     plt.xlabel('Epoch')
-    plt.ylabel('Loss / Accuracy')
+    plt.ylabel('Loss ')
     plt.legend()
     plt.savefig(f'{trained_model_path}/loss_plot.png')
     
+
+def train(model, epochs, train_loader, val_loader, criterion, optimizer, device, trained_model_path):
+    if os.path.exists(trained_model_path) == False:
+        os.makedirs(trained_model_path)
+    model.train()
+    loss_plot_train, loss_plot_val = [], []
+    best_val_loss = float('inf')
+    patience = 10 # Number of epochs to wait for improvement before early stopping
+    early_stopping_counter = 0
+
+    for epoch in range(epochs):
+        running_loss_train, running_loss_val = 0.0, 0.0
+        
+        # Training phase
+        for anchor_batch, positive_batch, negative_batch in train_loader:
+            anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
+            optimizer.zero_grad()
+            output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
+            loss = criterion(output1, output2, output3)
+            loss.backward()
+            optimizer.step()
+            running_loss_train += loss.item()
+
+        # Validation phase
+        model.eval()
+        with torch.no_grad():
+            for anchor_batch, positive_batch, negative_batch in val_loader:
+                anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
+                output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
+                loss = criterion(output1, output2, output3)
+                running_loss_val += loss.item()
+
+        # Compute average losses
+        avg_loss_train = running_loss_train / len(train_loader)
+        avg_loss_val = running_loss_val / len(val_loader)
+
+        # Log and print losses
+        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {avg_loss_train:.4f}, Val Loss: {avg_loss_val:.4f}")
+
+        # Check for early stopping
+        if avg_loss_val < best_val_loss:
+            best_val_loss = avg_loss_val
+            early_stopping_counter = 0
+            # Save the model if validation loss has decreased
+            torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= patience:
+                print(f"No improvement in validation loss for {patience} epochs. Early stopping.")
+                break
+
+        # Log losses for visualization
+        loss_plot_train.append(avg_loss_train)
+        loss_plot_val.append(avg_loss_val)
+
+    # Save training metrics and plots
+    save_metrics_plots(loss_plot_train, loss_plot_val, trained_model_path)
+
+
+def save_metrics_plots(loss_plot_train, loss_plot_val, trained_model_path):
+    # Save metrics and plots
+    if not os.path.exists(trained_model_path):
+        os.makedirs(trained_model_path)
+    torch.save({'loss_plot_train': loss_plot_train, 'loss_plot_val': loss_plot_val}, f'{trained_model_path}/metrics.pth')
+
+    # Plot and save the training and validation loss
+    plt.plot(loss_plot_train, label='Training Loss')
+    plt.plot(loss_plot_val, label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(f'{trained_model_path}/loss_plot.png')
+
+
+
+
 
 def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
     epochs = wandb.config.epochs
@@ -166,61 +198,80 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_10.pt')
-
-    augmentations = [
-    transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
-    transforms.RandomRotation(degrees=10),  # Randomly rotate images by a maximum of 10 degrees
-    transforms.CenterCrop(size=224),  # Randomly crop images to size 224x224
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)  # Randomly adjust brightness, contrast, saturation, and hue
-    ]
-
-    # Define a composite transformation that randomly applies augmentations
-    transform = transforms.Compose([
-        transforms.RandomApply(augmentations, p=0.5),  # Randomly apply augmentations with a probability of 0.5
-        transforms.ToTensor(),  # Convert images to PyTorch tensors
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize the tensor values to range [-1, 1]
-    ])    
-    dataset_train.transform = transform
-    dataset_val.transform = transform
+    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
-    optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+
+    trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
     train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, trained_model_path)
 
-def main_artist(dataset_name, feature,artist_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
-    epochs = wandb.config.epochs
+
+
+def train_artist(model, epochs, train_loader, criterion, optimizer, device, trained_model_path):
+    model.train()
+    running_loss_train = 0.0
+    loss_plot_train = []
+
+    for epoch in range(epochs):
+        for anchor_batch, positive_batch, negative_batch in train_loader:
+            anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
+            optimizer.zero_grad()
+            output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
+            loss = criterion(output1, output2, output3)
+            loss.backward()
+            optimizer.step()
+            running_loss_train += loss.item()
+
+
+        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {running_loss_train / len(train_loader):.4f}%")
+
+        wandb.log({"Train Loss": running_loss_train / len(train_loader)})
+        loss_plot_train.append(running_loss_train / len(train_loader))
+
+        running_loss_train = 0.0
+
+
+    if not os.path.exists(trained_model_path):
+        os.makedirs(trained_model_path)
+    torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
+    metrics = {'loss_plot_train': loss_plot_train}
+    torch.save(metrics, f'{trained_model_path}/metrics.pth')
+
+    plt.plot(loss_plot_train, label='Training Loss')
+
+    plt.title('Model Loss ')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(f'{trained_model_path}/loss_plot.png')
+
+def main_artist(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
+    epochs = 10#wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
     margin = wandb.config.margin
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist_name}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-
-    augmentations = [
-    transforms.RandomHorizontalFlip(),  # Randomly flip images horizontally
-    transforms.RandomRotation(degrees=10),  # Randomly rotate images by a maximum of 10 degrees
-    transforms.CenterCrop(size=224),  # Randomly crop images to size 224x224
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1)  # Randomly adjust brightness, contrast, saturation, and hue
-    ]
-
-    # Define a composite transformation that randomly applies augmentations
-    transform = transforms.Compose([
-        transforms.RandomApply(augmentations, p=0.5),  # Randomly apply augmentations with a probability of 0.5
-        transforms.ToTensor(),  # Convert images to PyTorch tensors
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize the tensor values to range [-1, 1]
-    ])    
-    dataset_train.transform = transform
-    tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
-    net = TripletResNet_features(dataset_train.dimension).to(device)
-    criterion = nn.TripletMarginLoss(margin=margin, p=2)
-    optimizer = torch.optim.Adam(net.parameters(), lr =  lr)
-    trained_model_path = f'trained_models/{dataset_name}/Artists/{artist_name}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
-    train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
+    if dataset_name == 'wikiart':
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+    elif dataset_name == 'fashion':
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+    if feature_extractor_name == "all":
+        artists = df['artist_name'].unique()
+    else:
+        artists = [feature_extractor_name]
+    for artist in artists:
+        dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+        tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
+        net = TripletResNet_features(dataset_train.dimension).to(device)
+        criterion = nn.TripletMarginLoss(margin=margin, p=2)
+        optimizer = torch.optim.Adam(net.parameters(), lr =  lr)#, weight_decay = 1e-5)
+        trained_model_path = f'trained_models/{dataset_name}/Artists/{artist}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
+        train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
 
 if __name__ == "__main__":
     start_time = time.time() 
@@ -241,7 +292,7 @@ if __name__ == "__main__":
     config={
     "learning_rate": 0.0005,
     "architecture": "Triplet Network",
-    "dataset": "Wikiart",
+    "dataset": args.dataset_name,
     "batch_size": 32,
     "epochs": 30,
     "margin": 1, 
