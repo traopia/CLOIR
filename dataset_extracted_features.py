@@ -31,7 +31,7 @@ def clean(df):
     df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
     df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
     # Fill NaN values in 'col1' with the average of 'col2'
-    #df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
+    df['date_filled'] = df.apply(lambda row: calculate_average(row['timeframe_estimation']) if pd.isna(row['date']) else row['date'], axis=1)
     return df
 
 

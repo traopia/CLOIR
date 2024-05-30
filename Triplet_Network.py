@@ -13,6 +13,7 @@ import time
 import os
 import argparse
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+import pandas as pd
 
 import random
 random.seed(42)
@@ -247,21 +248,30 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, trai
     plt.legend()
     plt.savefig(f'{trained_model_path}/loss_plot.png')
 
-def main_artist(dataset_name, feature,artist_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
-    epochs = wandb.config.epochs
+def main_artist(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
+    epochs = 10#wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
     margin = wandb.config.margin
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist_name}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
-    net = TripletResNet_features(dataset_train.dimension).to(device)
-    criterion = nn.TripletMarginLoss(margin=margin, p=2)
-    optimizer = torch.optim.Adam(net.parameters(), lr =  lr, weight_decay = 1e-5)
-    trained_model_path = f'trained_models/{dataset_name}/Artists/{artist_name}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}'
-    train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
+    if dataset_name == 'wikiart':
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+    elif dataset_name == 'fashion':
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+    if feature_extractor_name == "all":
+        artists = df['artist_name'].unique()
+    else:
+        artists = [feature_extractor_name]
+    for artist in artists:
+        dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+        tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
+        net = TripletResNet_features(dataset_train.dimension).to(device)
+        criterion = nn.TripletMarginLoss(margin=margin, p=2)
+        optimizer = torch.optim.Adam(net.parameters(), lr =  lr)#, weight_decay = 1e-5)
+        trained_model_path = f'trained_models/{dataset_name}/Artists/{artist}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
+        train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
 
 if __name__ == "__main__":
     start_time = time.time() 
