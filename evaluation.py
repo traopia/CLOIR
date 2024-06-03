@@ -103,8 +103,6 @@ class Evaluation():
             query_vector = self.df[self.feature].tolist()[query]
             D, I = index.search(query_vector.reshape(1,-1), k)  
             I = [index_list[i] for i in list(I[0])]
-            query_date = self.df.at[query, 'date_filled']
-
             self.df_mode.at[query, f'pos_ex_{self.feature}'] = I
         return self.df_mode[f'pos_ex_{self.feature}']
 
@@ -118,7 +116,7 @@ class Evaluation():
             artist_index_list = self.artist_to_paintings[artist]
             #if agent has as influencer only himself (mostly for idesigner)
             if self.df_mode[self.df_mode['artist_name']==artist].reset_index().influenced_by[0][0] == artist and len(self.df_mode[self.df_mode['artist_name']==artist].reset_index().influenced_by[0])==1:
-                index_list = set(self.df.index.tolist())
+                index_list = list(set(self.df.index.tolist()))
             else:
                 index_list = list(set(self.df.index.tolist()) - set(artist_index_list))
             if self.dataset_name == "wikiart": #not consider objects with date higher than the max of the artist grouped
@@ -188,7 +186,7 @@ class Evaluation():
         print('---------------------------------------')
         print(' ')
 
-        IR_metrics = { 'retrieved_indexes': self.df_mode[f'pos_ex_{self.feature}'], 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree,'precision_at_k_mean' : precision_at_k_mean , 'precision_at_k_second_degree_mean': precision_at_k_second_degree_mean, 'mrr_mean': mrr_sum,'mrr_second_degree_mean': mrr_second_degree_mean}
+        IR_metrics = { 'retrieved_indexes': self.df_mode[f'pos_ex_{self.feature}'], 'precision_at_k_artist': precision_at_k_artist, 'mrr_artist': mrr_artist, 'precision_at_k_artist_second_degree': precision_at_k_artist_second_degree, 'mrr_artist_second_degree': mrr_artist_second_degree, 'precisions_dict_result': precisions_dict_result, 'precisions_dict_result_second_degree': precisions_dict_result_second_degree,'precision_at_k_mean' : precision_at_k_mean , 'precision_at_k_second_degree_mean': precision_at_k_second_degree_mean, 'mrr_mean': mrr_mean,'mrr_second_degree_mean': mrr_second_degree_mean}
         return IR_metrics 
 
 
