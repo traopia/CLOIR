@@ -5,6 +5,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import torch
+import pandas as pd
+from scipy.stats import pearsonr
 
 def split_by_strata_artist(df, train_size=0.7):
     df['mode'] = None
@@ -82,20 +84,95 @@ def plot_examples(dataset_name, query, positive_indexes, df):
     plt.figure(figsize=(10, 5))
     plt.imshow(Image.open(general_image_path + df.loc[query].relative_path))
     plt.axis('off')
-    plt.title(str(df.loc[query].artist_name + ', influencers: ' + str(df.loc[query].influenced_by)))
+    if dataset_name == 'wikiart':
+        title_str = (r"$\bf{Agent:}$ " + df.loc[query].artist_name + '\n'
+             r"$\bf{Influencers:}$ " + ',\n'.join(df.loc[query].influenced_by) + 
+             '\n' + r"$\bf{date:}$ " + str(df.loc[query].date))
+    else:
+        title_str = (r"$\bf{Agent:}$ " + df.loc[query].artist_name + '\n'
+             r"$\bf{Influencers:}$ " + ',\n'.join(df.loc[query].influenced_by))
+    plt.title(title_str , fontsize=10)
     plt.show()
-
     # Plot grid of images
-    fig, axes = plt.subplots(3,3, figsize=(20, 20))  # 5 rows, 2 columns
+    fig, axes = plt.subplots(1,10, figsize=(20, 20))  # 5 rows, 2 columns
     for i, ax in enumerate(axes.flatten()):
         if i < len(positive_indexes):
             image_path = general_image_path + df.iloc[positive_indexes[i]].relative_path
             image = Image.open(image_path)
             ax.imshow(image)
             ax.axis('off')
-            ax.set_title(str(i+1)+" "+ df.iloc[positive_indexes[i]].artist_name)
+            if dataset_name == 'wikiart':
+                title_str = (r"$\bf{rank:}$ " + str(i+1) + '\n'
+                r"$\bf{Agent:}$ " +df.loc[positive_indexes[i]].artist_name +'\n' + r"$\bf{date:}$ " + str(df.loc[positive_indexes[i]].date_filled))
+            else:
+                title_str = (r"$\bf{rank:}$ " + str(i+1) + '\n'
+                r"$\bf{Agent:}$ " +df.loc[positive_indexes[i]].artist_name)
+
+            ax.set_title(title_str, fontsize = 10)
         else:
             ax.axis('off')  # Hide unused subplots
 
     plt.tight_layout()  # Adjust spacing between subplots
     plt.show()
+
+
+
+def print_mean_metrics(IR):
+        print(f'Pk: {round(np.mean(list(IR["precision_at_k_artist"].values())),3)}, MRR: {round(np.mean(list(IR["mrr_artist"].values())),3)}')
+        print(f'2Pk: {round(np.mean(list(IR["precision_at_k_artist_second_degree"].values())),3)}, 2MRR: {round(np.mean(list(IR["mrr_artist_second_degree"].values())),3)}')
+
+
+def metrics(IR):
+        print(f'Precision at k10 for artist: {IR["precision_at_k_sum"]}, MRR for artist: {IR["mrr_sum"]}')
+        print(f'Precision at k10 for second degree artist: {IR["precision_at_k_second_degree_sum"]}, MRR for second degree artist: {IR["mrr_second_degree_sum"]}')
+
+def print_metrics(dataset_name, viz = True):
+    i = 1
+    if dataset_name == "wikiart":
+        if viz:
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        features = ["image_features", "image_text_features"]
+    elif dataset_name == "fashion":
+        if viz:
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+        features = ["image_features"]
+    feature_extractors = ["ResNet34_newsplit","random_artists"]
+    sampling_strategies = ["posrandom", "posfaiss"]
+    num_examples = ["10", "100"]
+    dataset_name = "wikiart"
+    for feature in features:
+        for feature_extractor in feature_extractors:
+            if viz:
+                if dataset_name == "wikiart" and feature_extractor == "ResNet34_newsplit" :
+                    df = split_by_strata_artist(df) 
+                elif dataset_name == "fashion" and feature_extractor == "ResNet34_newsplit" :
+                    df = split_by_strata_artist_designer(df)
+                elif feature_extractor == "random_artists":
+                    df = split_by_artist_random(df)
+            path = f'trained_models/{dataset_name}/{feature_extractor}/baseline_IR_metrics/{feature}_val.pth'
+            IR_baseline = torch.load(path)
+            print(f'BASELINE with {feature_extractor}, {feature}')
+            print_mean_metrics(IR_baseline)
+            print('     ')
+            for num_example in num_examples:
+                for sampling_strategy in sampling_strategies:
+                    path = f'trained_models/{dataset_name}/{feature_extractor}/TripletResNet_{feature}_{sampling_strategy}_negrandom_{num_example}_margin1_notrans_epoch_30/IR_metrics/metrics_val.pth'
+                    IR_metrics = torch.load(path)
+                    print(f'Experiment:{feature_extractor}, {feature}, {sampling_strategy} and {num_example} ')
+                    print_mean_metrics(IR_metrics)
+                    if viz:
+                        if dataset_name == "wikiart":
+                            indices = df[(df['mode'] == 'val') & (df['artist_name'] == 'vincent-van-gogh')].index.tolist()
+                        elif: 
+                            indices = df[(df['mode'] == 'val') & (df['artist_name'] == 'alexander mcqueen')].index.tolist()
+                        plot_examples(dataset_name, indices[i],IR_metrics['retrieved_indexes'][indices[i]], df)
+                    print('    ')
+            print('----------')
+
+def correlation_number_positive_precision(dict_len_positive, dict_precision):
+        values1 = [dict_len_positive[key] for key in dict_len_positive]
+        values2 = [dict_precision[key] for key in dict_precision]
+
+        # Calculate Pearson correlation coefficient
+        correlation, _ = pearsonr(values1, values2)
+        return correlation
