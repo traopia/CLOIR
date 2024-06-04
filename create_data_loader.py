@@ -56,7 +56,9 @@ class TripletLossDataset_features(Dataset):
                 if v not in dict_influencers:
                     dict_influencers[v] = []
                 dict_influencers[v].append(key)
-            dict_influencers[key] = []
+        for key in dict_influenced_by.keys():
+            if key not in dict_influencers:
+                dict_influencers[key] = []
         artist_to_paintings = {}
         for index, row in self.df.iterrows():
             artist = row['artist_name']
@@ -254,3 +256,4 @@ if __name__ == "__main__":
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
+
