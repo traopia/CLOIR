@@ -1,3 +1,6 @@
 wikiart/
-DATA/Dataset/
+DATA/
 wandb/
+trained_models/
+influence_test/
+experiments/
