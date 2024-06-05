@@ -170,32 +170,32 @@ class TripletLossDataset_features(Dataset):
 
 
 
-def main(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+def main(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
-        if feature_extractor_name == "ResNet34_newsplit":
+        if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
-        elif feature_extractor_name == "random_artists":
+        elif data_split == "random_artists":
             df = split_by_artist_random(df)
-        elif feature_extractor_name == "popular_artists":
+        elif data_split == "popular_artists":
             df = split_based_on_popularity(df)
-        elif feature_extractor_name == "unpopular_artists":
+        elif data_split == "unpopular_artists":
             df = split_based_on_unpopularity(df)
     elif dataset_name == 'fashion':
-        if feature_extractor_name == "ResNet34_newsplit":
+        if data_split == "stratified_artists":
             if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
                 df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
             else:
                 df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
                 df = split_by_strata_artist_designer(df)
                 df.to_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
-        elif feature_extractor_name == "random_artists":
+        elif data_split == "random_artists":
             df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
             df = split_by_artist_random(df)
-        elif feature_extractor_name == "popular_artists":
+        elif data_split == "popular_artists":
             df = split_based_on_popularity(df)
 
-    save_path = f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}'
+    save_path = f'DATA/Dataset_toload/{dataset_name}/{data_split}'
     os.makedirs(save_path, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
@@ -207,15 +207,15 @@ def main(dataset_name,feature,feature_extractor_name, num_examples, positive_bas
 
 
 
-def main_artists(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+def main_artists(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
-    if feature_extractor_name == 'all':
+    if data_split == 'all':
         artists = df['artist_name'].unique()
     else:
-        artists = [feature_extractor_name]
+        artists = [data_split]
     for artist in artists:
         print(artist)
         df = split_by_artist_given(df, artist)
@@ -233,15 +233,15 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
-    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34_newsplit', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--data_split', type=str, default = 'stratified_artists', help= ['stratified_artists', 'random_artists' 'popular_artists'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
     if args.artist_splits:
-        main_artists(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main_artists(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     else:
-        main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
