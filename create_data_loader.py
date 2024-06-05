@@ -8,7 +8,7 @@ import time
 import os
 import argparse
 from collections import Counter
-from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random
+from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random, split_based_on_popularity, split_based_on_unpopularity
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -20,11 +20,9 @@ class TripletLossDataset_features(Dataset):
         self.feature = feature
         self.num_examples = num_examples
         self.device = device
-        self.keep_without_influencers = True
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        self.df = self.remove_influencers_without_examples(self.df)
         self.dict_influence_indexes, self.painter_indexes, self.dict_influencers = self.get_dictionaries()
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df.loc[0,self.feature].shape[0]  
@@ -35,18 +33,12 @@ class TripletLossDataset_features(Dataset):
    
     def filter_indices(self):
         '''Filter indices based on mode and number of examples per anchor'''
-        filtered = [index for index in range(len(self.df))]
+        all_artist_names = set(self.df['artist_name'])
+        self.df['influenced_by'] = self.df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
+        df_with_influencers = self.df[self.df['influenced_by'].apply(len)>0]
+        filtered = df_with_influencers.index.tolist()
         return filtered
 
-
-    def remove_influencers_without_examples(self,df):
-        all_artist_names = set(df['artist_name'])
-        df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
-        if self.keep_without_influencers:
-            df['influenced_by'] = df.apply(lambda row: [row['artist_name']] if len(row['influenced_by']) == 0 else row['influenced_by'], axis=1)
-        else:
-            df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
-        return df
 
     def get_dictionaries(self):
         dict_influenced_by = self.df.groupby('artist_name')['influenced_by'].first().to_dict()
@@ -66,14 +58,7 @@ class TripletLossDataset_features(Dataset):
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
         return artist_to_influencer_paintings, artist_to_paintings, dict_influencers
     
-    def get_dictionaries(self):
-        dict_influenced_by = self.df_mode.groupby('artist_name')['influenced_by'].first().to_dict()
-        artist_to_paintings = {}
-        for index, row in self.df.iterrows():
-            artist = row['artist_name']
-            artist_to_paintings.setdefault(artist, []).append(index)
-        artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
+
 
     def vector_similarity_search_group(self,query_indexes, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
@@ -192,6 +177,10 @@ def main(dataset_name,feature,feature_extractor_name, num_examples, positive_bas
             df = split_by_strata_artist(df)
         elif feature_extractor_name == "random_artists":
             df = split_by_artist_random(df)
+        elif feature_extractor_name == "popular_artists":
+            df = split_based_on_popularity(df)
+        elif feature_extractor_name == "unpopular_artists":
+            df = split_based_on_unpopularity(df)
     elif dataset_name == 'fashion':
         if feature_extractor_name == "ResNet34_newsplit":
             if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
@@ -203,19 +192,19 @@ def main(dataset_name,feature,feature_extractor_name, num_examples, positive_bas
         elif feature_extractor_name == "random_artists":
             df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
             df = split_by_artist_random(df)
+        elif feature_extractor_name == "popular_artists":
+            df = split_based_on_popularity(df)
 
-
-
-   
-    if os.path.exists(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}') == False:
-        os.makedirs(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}')
+    save_path = f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}'
+    os.makedirs(save_path, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
     val_dataset = TripletLossDataset_features('val', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    torch.save(val_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(train_dataset, os.path.join(save_path, f'train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt'))
+    torch.save(val_dataset, os.path.join(save_path, f'val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt'))
+
 
 
 def main_artists(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):

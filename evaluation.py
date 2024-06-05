@@ -13,24 +13,13 @@ from functions import split_by_artist_given, split_by_strata_artist, split_by_st
 
 class Evaluation():
     def __init__(self,dataset_name,df,feature,device,mode):
-        self.keep_without_influencers = True
+        self.keep_without_influencers = False
         self.dataset_name = dataset_name
         self.feature = feature
         self.device = device
-
-        self.df = self.remove_influencers_without_examples(df)
+        self.df = df
         self.df_mode = self.df[self.df['mode'] == mode].copy()
         self.dict_influence_indexes, self.artist_to_paintings, self.dict_influenced_by = self.get_dictionaries()
-
-    
-    def remove_influencers_without_examples(self,df):
-        all_artist_names = set(df['artist_name'])
-        df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
-        if self.keep_without_influencers:
-            df['influenced_by'] = df.apply(lambda row: [row['artist_name']] if len(row['influenced_by']) == 0 else row['influenced_by'], axis=1)
-        else:
-            df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
-        return df
 
     def mean_reciprocal_rank(self,ground_truth, ranked_lists):
         """
@@ -85,7 +74,6 @@ class Evaluation():
         k = 10
 
         xb = torch.stack(self.df.loc[index_list, self.feature].tolist())
-        #xb = torch.stack(self.df.loc[index_list, self.feature].values)
         d = xb.shape[1]
         index = faiss.IndexFlatL2(d)
         if xb.shape[0] < 1000:
