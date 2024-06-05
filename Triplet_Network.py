@@ -189,7 +189,7 @@ def save_metrics_plots(loss_plot_train, loss_plot_val, trained_model_path):
 
 
 
-def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
+def main(dataset_name, feature,data_split, num_examples,positive_based_on_similarity, negative_based_on_similarity):    
     epochs = wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
@@ -197,15 +197,15 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/{data_split}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    dataset_val = torch.load(f'DATA/Dataset_toload/{dataset_name}/{data_split}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
     tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
     tripleloss_loader_val = DataLoader(dataset_val, shuffle=False, batch_size=batch_size)
     net = TripletResNet_features(dataset_train.dimension).to(device)
     criterion = nn.TripletMarginLoss(margin=margin, p=2)
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
-    trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
+    trained_model_path = f'trained_models/{dataset_name}/{data_split}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
     train(net,epochs, tripleloss_loader_train, tripleloss_loader_val, criterion, optimizer, device, trained_model_path)
 
 
@@ -248,7 +248,7 @@ def train_artist(model, epochs, train_loader, criterion, optimizer, device, trai
     plt.legend()
     plt.savefig(f'{trained_model_path}/loss_plot.png')
 
-def main_artist(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity):
+def main_artist(dataset_name, feature,data_split, num_examples,positive_based_on_similarity, negative_based_on_similarity):
     epochs = 10#wandb.config.epochs
     lr = wandb.config.learning_rate
     batch_size = wandb.config.batch_size
@@ -260,10 +260,10 @@ def main_artist(dataset_name, feature,feature_extractor_name, num_examples,posit
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
     elif dataset_name == 'fashion':
         df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
-    if feature_extractor_name == "all":
+    if data_split == "all":
         artists = df['artist_name'].unique()
     else:
-        artists = [feature_extractor_name]
+        artists = [data_split]
     for artist in artists:
         dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
         tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
-    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--data_split', type=str, default = '"stratified_artists"', help= ["stratified_artists", "random_artists"])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
@@ -300,14 +300,14 @@ if __name__ == "__main__":
     "feature": args.feature,
     "positive_based_on_similarity": args.positive_based_on_similarity,
     "negative_based_on_similarity": args.negative_based_on_similarity,
-    "feature_extractor_name": args.feature_extractor_name
+    "data_split": args.data_split
     }
 
     )
     if args.artist_splits:
-        main_artist(args.dataset_name, args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main_artist(args.dataset_name, args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     else:
-        main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))

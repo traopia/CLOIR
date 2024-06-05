@@ -184,7 +184,7 @@ class Evaluation():
 
 
 
-def main(dataset_name, feature,feature_extractor_name, num_examples,positive_based_on_similarity, negative_based_on_similarity,artist_splits):
+def main(dataset_name, feature,data_split, num_examples,positive_based_on_similarity, negative_based_on_similarity,artist_splits):
     device = torch.device("cuda" if torch.cuda.is_available() else "mps")
     mode = 'val'
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
@@ -192,24 +192,24 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
     margin = 1
     if dataset_name == 'wikiart':
         df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
-        if feature_extractor_name == "ResNet34_newsplit":
+        if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
-        elif feature_extractor_name == "random_artists":
+        elif data_split == "random_artists":
             df = split_by_artist_random(df)
     elif dataset_name == 'fashion':
-        if feature_extractor_name == "ResNet34_newsplit":
+        if data_split == "stratified_artists":
             if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
                 df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
-        elif feature_extractor_name == "random_artists":
+        elif data_split == "random_artists":
             df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
             df = split_by_artist_random(df)
 
     model = TripletResNet_features(df.loc[0,feature].shape[0])
     if artist_splits:
-        if feature_extractor_name == "all":
+        if data_split == "all":
             artists = df['artist_name'].unique()
         else:
-            artists = [feature_extractor_name]
+            artists = [data_split]
         for artist in artists:
             df = split_by_artist_given(df, artist)
             print(f'BASELINE METRIC with {feature} for  {artist}')
@@ -233,13 +233,13 @@ def main(dataset_name, feature,feature_extractor_name, num_examples,positive_bas
 
     else:
         print(f'BASELINE METRIC with {feature}')
-        if os.path.exists(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics') == False:
-            os.makedirs(f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics')
+        if os.path.exists(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics') == False:
+            os.makedirs(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics')
         IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
-        torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{feature_extractor_name}/baseline_IR_metrics/{feature}_{mode}.pth')
+        torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics/{feature}_{mode}.pth')
 
    
-        trained_model_path = f'trained_models/{dataset_name}/{feature_extractor_name}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
+        trained_model_path = f'trained_models/{dataset_name}/{data_split}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
         print(f'Features with model {trained_model_path}')
         model_path = trained_model_path + '/model.pth'
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
@@ -256,12 +256,12 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
-    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--data_split', type=str, default = 'stratified_artists', help= ['stratified_artists', 'random_artists' 'popular_artists'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
-    main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity, args.artist_splits)
+    main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity, args.artist_splits)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))
