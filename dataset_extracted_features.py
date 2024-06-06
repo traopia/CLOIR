@@ -119,14 +119,14 @@ def preprocess_data(df,general_path,dataset_outpath, dataset_name, device):
 def main(dataset_name):
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     if dataset_name == 'wikiart':
-        df_path = 'DATA/Dataset/wikiart_full_combined_no_artist.pkl'
+        df_path = 'DATA/Dataset/wikiart_full_influence.pkl'
         dataset_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/' #'wikiart/'
-        output_path = 'DATA/Dataset/wikiart_full_combined_resnet152.pkl'
+        output_path = 'DATA/Dataset/wikiartINFL.pkl'
 
     elif dataset_name == 'idesigner':
         df_path = 'DATA/Dataset/iDesigner/idesigner_influences_cropped.pkl'
         dataset_path = 'DATA/Dataset/iDesigner/designer_image_train_v2_cropped/'
-        output_path = 'DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl'
+        output_path = 'DATA/Dataset/iDesigner/idesignerINFL.pkl'
 
     df = pd.read_pickle(df_path)
     df = clean(df)

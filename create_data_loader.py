@@ -172,7 +172,7 @@ class TripletLossDataset_features(Dataset):
 
 def main(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
         if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
         elif data_split == "random_artists":
@@ -183,14 +183,14 @@ def main(dataset_name,feature,data_split, num_examples, positive_based_on_simila
             df = split_based_on_unpopularity(df)
     elif dataset_name == 'fashion':
         if data_split == "stratified_artists":
-            if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+            if os.path.exists('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl'):
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
             else:
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
                 df = split_by_strata_artist_designer(df)
-                df.to_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+                df.to_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
         elif data_split == "random_artists":
-            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
             df = split_by_artist_random(df)
         elif data_split == "popular_artists":
             df = split_based_on_popularity(df)
@@ -209,9 +209,9 @@ def main(dataset_name,feature,data_split, num_examples, positive_based_on_simila
 
 def main_artists(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
     elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
     if data_split == 'all':
         artists = df['artist_name'].unique()
     else:

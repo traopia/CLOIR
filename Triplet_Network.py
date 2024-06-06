@@ -257,9 +257,9 @@ def main_artist(dataset_name, feature,data_split, num_examples,positive_based_on
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
     elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
     if data_split == "all":
         artists = df['artist_name'].unique()
     else:

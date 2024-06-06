@@ -159,13 +159,13 @@ def metrics(IR):
 def print_metrics(dataset_name, viz = True):
     if dataset_name == "wikiart":
         if viz:
-            df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
             index = 2896
         features = ["image_features", "image_text_features"]
 
     if dataset_name == "fashion":
         if viz:
-            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
             index = 3199
         features = ["image_features"]
     feature_extractors = ["ResNet34_newsplit","random_artists"]

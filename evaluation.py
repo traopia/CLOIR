@@ -191,17 +191,17 @@ def main(dataset_name, feature,data_split, num_examples,positive_based_on_simila
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     margin = 1
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
         if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
         elif data_split == "random_artists":
             df = split_by_artist_random(df)
     elif dataset_name == 'fashion':
         if data_split == "stratified_artists":
-            if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+            if os.path.exists('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl'):
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
         elif data_split == "random_artists":
-            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
             df = split_by_artist_random(df)
 
     model = TripletResNet_features(df.loc[0,feature].shape[0])
