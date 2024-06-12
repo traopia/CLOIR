@@ -172,7 +172,10 @@ class TripletLossDataset_features(Dataset):
 
 def main(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
+        if 'clip' in feature:
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL_clip.pkl')
+        else:
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
         if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
         elif data_split == "random_artists":
