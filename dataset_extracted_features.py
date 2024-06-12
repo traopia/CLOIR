@@ -8,6 +8,9 @@ from transformers import GPT2Tokenizer, GPT2Model
 import time 
 import pickle
 import os
+import argparse
+import clip
+from torch.utils.data import DataLoader, Dataset
 
 def calculate_average(s):
     parts = s.split('-')
@@ -114,28 +117,91 @@ def preprocess_data(df,general_path,dataset_outpath, dataset_name, device):
 
     return df
 
+def clip_features(dataset_name, general_path, df, index,device,model, preprocess):
 
 
-def main(dataset_name):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+    # Load and preprocess the image
+    image = preprocess(Image.open(general_path + df.loc[index, 'relative_path'])).unsqueeze(0)
+
+    if dataset_name == "wikiart":
+        # Tokenize the text metadata
+        df.loc[:, 'title'] = df.apply(lambda x: x.relative_path.split('/')[-1].split('.')[0].split('_')[1] if len(x.relative_path.split('/')[-1].split('.')[0].split('_')) == 2 else x.relative_path.split('/')[-1].split('.')[0].split('_'), axis=1)
+        #df.loc[:, 'tags'] = df['tags'].fillna(' ')
+        text = clip.tokenize([str(df.loc[index, 'style_classification'] + ' ' + str(df.loc[index, 'timeframe_estimation']) + ' ' + str(df.loc[index, 'artist_school'])  + ' ' + str(df.loc[index, 'title']))])
+        text = text.to(device)
+
+    image = image.to(device)
+    model = model.to(device)
+
+    # Extract image embeddings
+    with torch.no_grad():
+        image_features = model.encode_image(image).cpu()
+        if dataset_name == "wikiart":
+            text_features = model.encode_text(text).cpu()
+
+    # Normalize the embeddings
+    image_features /= image_features.norm(dim=-1, keepdim=True)
+
+    if dataset_name == "wikiart":
+        text_features /= text_features.norm(dim=-1, keepdim=True)
+        return image_features, text_features
+    else:
+        return image_features
+
+
+def clip_process_data(dataset_name, general_path, df, dataset_outpath, device):
+    indexes = df.index.tolist()
+    df['clip_image_features'] = [None]*len(df)
+    df['clip_text_features'] = [None]*len(df)
+    model, preprocess = clip.load("ViT-B/32")
+    model = model.to(device)
+    for index in indexes:
+        print(index)
+        if dataset_name == "wikiart":
+            image_features, text_features = clip_features(dataset_name, general_path, df, index,device,model,preprocess)
+            df.at[index, 'clip_image_features'] = image_features
+            df.at[index, 'clip_text_features'] = text_features
+
+    df['clip_image_features'] = df['clip_image_features'].apply(lambda x: x.reshape(-1))
+    df['clip_text_features'] = df['clip_text_features'].apply(lambda x: x.reshape(-1))
+    df['clip_image_text_features'] = df.apply(lambda row: torch.cat((row['clip_image_features'], row['clip_text_features'])), axis=1)
+    df.to_pickle(dataset_outpath)
+
+    return df
+
+
+
+
+def main(dataset_name, model="ResNet"):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if dataset_name == 'wikiart':
-        df_path = 'DATA/Dataset/wikiart_full_influence.pkl'
-        dataset_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/' #'wikiart/'
-        output_path = 'DATA/Dataset/wikiartINFL.pkl'
-
+        df_path = 'DATA/Dataset/wikiart/wikiartINFL.pkl'
+        dataset_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/'
+        output_path = 'DATA/Dataset/wikiart/wikiartINFL_clip.pkl'
     elif dataset_name == 'idesigner':
         df_path = 'DATA/Dataset/iDesigner/idesigner_influences_cropped.pkl'
         dataset_path = 'DATA/Dataset/iDesigner/designer_image_train_v2_cropped/'
         output_path = 'DATA/Dataset/iDesigner/idesignerINFL.pkl'
 
     df = pd.read_pickle(df_path)
-    df = clean(df)
-    preprocess_data(df,dataset_path,output_path,dataset_name, device)
+    df = df.drop(columns=['image_features', 'image_text_features', 'text_features', 'additional_styles'])
+
+    if model == "clip":
+        clip_process_data(dataset_name, dataset_path, df, output_path,device)
+    elif model == "ResNet":
+        preprocess_data(df,dataset_path,output_path,dataset_name, device)
+
+
+
+
 
 if __name__ == '__main__':
     start_time = time.time() 
-    dataset_name = 'idesigner'
-    main(dataset_name)
+    parser = argparse.ArgumentParser(description="Create dataset for triplet loss network on wikiart to predict influence.")
+    parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
+    parser.add_argument('--model', type=str, default='ResNet', choices=['ResNet', 'clip'])
+    args = parser.parse_args()
+    main(args.dataset_name, args.model)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to extract the features: {:.2f} seconds".format(elapsed_time))
