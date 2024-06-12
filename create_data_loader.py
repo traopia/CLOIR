@@ -8,7 +8,7 @@ import time
 import os
 import argparse
 from collections import Counter
-from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random
+from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random, split_based_on_popularity, split_based_on_unpopularity
 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -20,11 +20,9 @@ class TripletLossDataset_features(Dataset):
         self.feature = feature
         self.num_examples = num_examples
         self.device = device
-        self.keep_without_influencers = True
         self.positive_similarity_based = positive_similarity_based
         self.negative_similarity_based = negative_similarity_based
         self.df = df[df['mode'] == mode].reset_index(drop=True)
-        self.df = self.remove_influencers_without_examples(self.df)
         self.dict_influence_indexes, self.painter_indexes, self.dict_influencers = self.get_dictionaries()
         self.filtered_indices = self.filter_indices()
         self.dimension = self.df.loc[0,self.feature].shape[0]  
@@ -35,18 +33,12 @@ class TripletLossDataset_features(Dataset):
    
     def filter_indices(self):
         '''Filter indices based on mode and number of examples per anchor'''
-        filtered = [index for index in range(len(self.df))]
+        all_artist_names = set(self.df['artist_name'])
+        self.df['influenced_by'] = self.df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
+        df_with_influencers = self.df[self.df['influenced_by'].apply(len)>0]
+        filtered = df_with_influencers.index.tolist()
         return filtered
 
-
-    def remove_influencers_without_examples(self,df):
-        all_artist_names = set(df['artist_name'])
-        df['influenced_by'] = df['influenced_by'].apply(lambda artists_list: [artist for artist in artists_list if artist in all_artist_names])
-        if self.keep_without_influencers:
-            df['influenced_by'] = df.apply(lambda row: [row['artist_name']] if len(row['influenced_by']) == 0 else row['influenced_by'], axis=1)
-        else:
-            df = df[df['influenced_by'].apply(len)>0].reset_index(drop=True)
-        return df
 
     def get_dictionaries(self):
         dict_influenced_by = self.df.groupby('artist_name')['influenced_by'].first().to_dict()
@@ -56,7 +48,9 @@ class TripletLossDataset_features(Dataset):
                 if v not in dict_influencers:
                     dict_influencers[v] = []
                 dict_influencers[v].append(key)
-            dict_influencers[key] = []
+        for key in dict_influenced_by.keys():
+            if key not in dict_influencers:
+                dict_influencers[key] = []
         artist_to_paintings = {}
         for index, row in self.df.iterrows():
             artist = row['artist_name']
@@ -64,14 +58,7 @@ class TripletLossDataset_features(Dataset):
         artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
         return artist_to_influencer_paintings, artist_to_paintings, dict_influencers
     
-    def get_dictionaries(self):
-        dict_influenced_by = self.df_mode.groupby('artist_name')['influenced_by'].first().to_dict()
-        artist_to_paintings = {}
-        for index, row in self.df.iterrows():
-            artist = row['artist_name']
-            artist_to_paintings.setdefault(artist, []).append(index)
-        artist_to_influencer_paintings = {artist: [painting for influencer in influencers if influencer in artist_to_paintings for painting in artist_to_paintings[influencer]] for artist, influencers in dict_influenced_by.items()}
-        return artist_to_influencer_paintings, artist_to_paintings, dict_influenced_by
+
 
     def vector_similarity_search_group(self,query_indexes, index_list):
         '''Search for similar vectors in the dataset using faiss library'''
@@ -183,48 +170,55 @@ class TripletLossDataset_features(Dataset):
 
 
 
-def main(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+def main(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
-        if feature_extractor_name == "ResNet34_newsplit":
+        if 'clip' in feature:
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL_clip.pkl')
+        else:
+            df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
+        if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
-        elif feature_extractor_name == "random_artists":
+        elif data_split == "random_artists":
             df = split_by_artist_random(df)
+        elif data_split == "popular_artists":
+            df = split_based_on_popularity(df)
+        elif data_split == "unpopular_artists":
+            df = split_based_on_unpopularity(df)
     elif dataset_name == 'fashion':
-        if feature_extractor_name == "ResNet34_newsplit":
-            if os.path.exists('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl'):
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
+        if data_split == "stratified_artists":
+            if os.path.exists('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl'):
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
             else:
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
                 df = split_by_strata_artist_designer(df)
-                df.to_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features_mode.pkl')
-        elif feature_extractor_name == "random_artists":
-            df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
+                df.to_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
+        elif data_split == "random_artists":
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
             df = split_by_artist_random(df)
+        elif data_split == "popular_artists":
+            df = split_based_on_popularity(df)
 
-
-
-   
-    if os.path.exists(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}') == False:
-        os.makedirs(f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}')
+    save_path = f'DATA/Dataset_toload/{dataset_name}/{data_split}'
+    os.makedirs(save_path, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
     how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
     how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
     train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
     val_dataset = TripletLossDataset_features('val', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-    torch.save(train_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-    torch.save(val_dataset, f'DATA/Dataset_toload/{dataset_name}/{feature_extractor_name}/val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+    torch.save(train_dataset, os.path.join(save_path, f'train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt'))
+    torch.save(val_dataset, os.path.join(save_path, f'val_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt'))
 
 
-def main_artists(dataset_name,feature,feature_extractor_name, num_examples, positive_based_on_similarity, negative_based_on_similarity):
+
+def main_artists(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
     if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiart_full_combined_no_artist_filtered.pkl')
+        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
     elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesigner_influences_cropped_features.pkl')
-    if feature_extractor_name == 'all':
+        df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
+    if data_split == 'all':
         artists = df['artist_name'].unique()
     else:
-        artists = [feature_extractor_name]
+        artists = [data_split]
     for artist in artists:
         print(artist)
         df = split_by_artist_given(df, artist)
@@ -242,15 +236,16 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, default='wikiart', choices=['wikiart', 'fashion'])
     parser.add_argument('--feature', type=str, default='image_features', help='image_features text_features image_text_features')
     parser.add_argument('--artist_splits', action='store_true',help= 'create dataset excluding a gievn artist from training set' )
-    parser.add_argument('--feature_extractor_name', type=str, default = 'ResNet34_newsplit', help= ['ResNet34', 'ResNet34_newsplit' 'ResNet152'])
+    parser.add_argument('--data_split', type=str, default = 'stratified_artists', help= ['stratified_artists', 'random_artists' 'popular_artists'])
     parser.add_argument('--num_examples', type=int, default=10, help= 'How many examples for each anchor')
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
     if args.artist_splits:
-        main_artists(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main_artists(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     else:
-        main(args.dataset_name,args.feature,args.feature_extractor_name, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+        main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
+
