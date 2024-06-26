@@ -1,6 +1,8 @@
 wikiart/
-DATA/
+DATA/Dataset_toload/
 wandb/
 trained_models/
 influence_test/
 experiments/
+images_data/
+ignore/

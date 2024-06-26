@@ -109,7 +109,7 @@ def plot_examples(dataset_name, query, positive_indexes, df):
     if dataset_name == 'wikiart':
         general_image_path = '/home/tliberatore2/Reproduction-of-ArtSAGENet/wikiart/'
     if dataset_name == "fashion":
-        general_image_path = 'DATA/Dataset/iDesigner/designer_image_train_v2_cropped/'
+        general_image_path = 'images_data/designer_image_train_v2_cropped/'
 
     plt.figure(figsize=(10, 5))
     plt.imshow(Image.open(general_image_path + df.loc[query].relative_path))
@@ -144,8 +144,6 @@ def plot_examples(dataset_name, query, positive_indexes, df):
 
     plt.tight_layout()  # Adjust spacing between subplots
     plt.show()
-<<<<<<< HEAD
-=======
 
 
 
@@ -158,27 +156,33 @@ def metrics(IR):
         print(f'Precision at k10 for artist: {IR["precision_at_k_mean"]}, MRR for artist: {round(np.mean(list(IR["mrr_artist"].values())),3)}')
         print(f'Precision at k10 for second degree artist: {IR["precision_at_k_second_degree_mean"]}, MRR for second degree artist: {IR["mrr_second_degree_mean"]}')
 
-def print_metrics(dataset_name, viz = True):
+def print_metrics(dataset_name, clip = False, viz = False):
     if dataset_name == "wikiart":
         if viz:
             df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
             index = 2896
-        features = ["image_features", "image_text_features"]
+        if clip:
+            features = ["clip_image_features", "clip_image_text_features" ]
+        else:
+            features = ["image_features", "image_text_features"]
 
     if dataset_name == "fashion":
         if viz:
-            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
             index = 3199
-        features = ["image_features"]
-    feature_extractors = ["ResNet34_newsplit","random_artists"]
+        if clip:
+            features = ["clip_image_features"]
+        else:
+            features = ["image_features"]
+    feature_extractors = ["stratified_artists","random_artists"]
     sampling_strategies = ["posrandom", "posfaiss"]
     num_examples = ["10", "100"]
     for feature in features:
         for feature_extractor in feature_extractors:
             if viz:
-                if dataset_name == "wikiart" and feature_extractor == "ResNet34_newsplit" :
+                if dataset_name == "wikiart" and feature_extractor == "stratified_artists" :
                     df = split_by_strata_artist(df) 
-                elif dataset_name == "fashion" and feature_extractor == "ResNet34_newsplit" :
+                elif dataset_name == "fashion" and feature_extractor == "stratified_artists" :
                     df = split_by_strata_artist_designer(df)
                     i = 16
                 elif feature_extractor == "random_artists":
@@ -210,4 +214,3 @@ def correlation_number_positive_precision(dict_len_positive, dict_precision):
         # Calculate Pearson correlation coefficient
         correlation, _ = pearsonr(values1, values2)
         return correlation
->>>>>>> 4e9b9c0bbd9ae7e727db75c3e111b124596cf8c9

@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch
 import os
 import argparse
-from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random
+from functions import split_by_artist_given, split_by_strata_artist, split_by_strata_artist_designer, split_by_artist_random, split_based_on_popularity
 
 class Evaluation():
     def __init__(self,dataset_name,df,feature,device,mode):
@@ -197,15 +197,18 @@ def main(dataset_name, feature,data_split, num_examples,positive_based_on_simila
             df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
         if data_split == "stratified_artists":
             df = split_by_strata_artist(df)
-        elif data_split == "random_artists":
-            df = split_by_artist_random(df)
     elif dataset_name == 'fashion':
-        if data_split == "stratified_artists":
-            if os.path.exists('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl'):
-                df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_mode.pkl')
-        elif data_split == "random_artists":
+        if 'clip' in feature:
+            df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL_clip.pkl')
+        else:
             df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
-            df = split_by_artist_random(df)
+        if data_split == "stratified_artists":
+            df = df
+
+    if data_split == "random_artists":
+        df = split_by_artist_random(df)
+    if data_split == "popular_artists":
+        df = split_based_on_popularity(df)
 
     model = TripletResNet_features(df.loc[0,feature].shape[0])
     if artist_splits:
