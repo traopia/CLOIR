@@ -1,3 +1,4 @@
+DATA/Dataset
 wikiart/
 DATA/Dataset_toload/
 DATA/Dataset/
@@ -7,3 +8,4 @@ influence_test/
 experiments/
 images_data/
 ignore/
+
