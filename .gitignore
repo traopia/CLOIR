@@ -2,10 +2,11 @@ DATA/Dataset/
 wikiart/
 DATA/Dataset_toload/
 DATA/Dataset/
+wikiart/
+DATA/
 wandb/
 trained_models/
 influence_test/
 experiments/
 images_data/
 ignore/
-
