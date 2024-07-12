@@ -5,7 +5,7 @@ The main steps of the approach include (i) sourcing of influence relations betwe
 
 
 # Datasets
-1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart] (https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737). 
+1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart](https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737). 
 
 2. [iDesigner](https://www.kaggle.com/competitions/idesigner/data): We use the images contained in DATA/Dataset/iDesigner/designer_image_train_v2_cropped.
 
