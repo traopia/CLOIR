@@ -210,68 +210,7 @@ def main(dataset_name, feature,data_split, num_examples,positive_based_on_simila
 
 
 
-def train_artist(model, epochs, train_loader, criterion, optimizer, device, trained_model_path):
-    model.train()
-    running_loss_train = 0.0
-    loss_plot_train = []
 
-    for epoch in range(epochs):
-        for anchor_batch, positive_batch, negative_batch in train_loader:
-            anchor_batch, positive_batch, negative_batch = anchor_batch.to(device), positive_batch.to(device), negative_batch.to(device)
-            optimizer.zero_grad()
-            output1, output2, output3 = model(anchor_batch, positive_batch, negative_batch)
-            loss = criterion(output1, output2, output3)
-            loss.backward()
-            optimizer.step()
-            running_loss_train += loss.item()
-
-
-        print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {running_loss_train / len(train_loader):.4f}%")
-
-        wandb.log({"Train Loss": running_loss_train / len(train_loader)})
-        loss_plot_train.append(running_loss_train / len(train_loader))
-
-        running_loss_train = 0.0
-
-
-    if not os.path.exists(trained_model_path):
-        os.makedirs(trained_model_path)
-    torch.save(model.state_dict(), f'{trained_model_path}/model.pth')
-    metrics = {'loss_plot_train': loss_plot_train}
-    torch.save(metrics, f'{trained_model_path}/metrics.pth')
-
-    plt.plot(loss_plot_train, label='Training Loss')
-
-    plt.title('Model Loss ')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig(f'{trained_model_path}/loss_plot.png')
-
-def main_artist(dataset_name, feature,data_split, num_examples,positive_based_on_similarity, negative_based_on_similarity):
-    epochs = 10#wandb.config.epochs
-    lr = wandb.config.learning_rate
-    batch_size = wandb.config.batch_size
-    margin = wandb.config.margin
-    device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-    how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
-    how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-    if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
-    elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
-    if data_split == "all":
-        artists = df['artist_name'].unique()
-    else:
-        artists = [data_split]
-    for artist in artists:
-        dataset_train = torch.load(f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
-        tripleloss_loader_train = DataLoader(dataset_train, shuffle=True, batch_size=batch_size)
-        net = TripletResNet_features(dataset_train.dimension).to(device)
-        criterion = nn.TripletMarginLoss(margin=margin, p=2)
-        optimizer = torch.optim.Adam(net.parameters(), lr =  lr)#, weight_decay = 1e-5)
-        trained_model_path = f'trained_models/{dataset_name}/Artists/{artist}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_{epochs}'
-        train_artist(net,epochs, tripleloss_loader_train, criterion, optimizer, device, trained_model_path)
 
 if __name__ == "__main__":
     start_time = time.time() 
@@ -304,10 +243,8 @@ if __name__ == "__main__":
     }
 
     )
-    if args.artist_splits:
-        main_artist(args.dataset_name, args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
-    else:
-        main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+
+    main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required for training : {:.2f} seconds".format(elapsed_time))

@@ -211,50 +211,24 @@ def main(dataset_name, feature,data_split, num_examples,positive_based_on_simila
         df = split_based_on_popularity(df)
 
     model = TripletResNet_features(df.loc[0,feature].shape[0])
-    if artist_splits:
-        if data_split == "all":
-            artists = df['artist_name'].unique()
-        else:
-            artists = [data_split]
-        for artist in artists:
-            df = split_by_artist_given(df, artist)
-            print(f'BASELINE METRIC with {feature} for  {artist}')
-            if os.path.exists(f'trained_models/{dataset_name}/Artists/baseline_IR_metrics') == False:
-                os.makedirs(f'trained_models/{dataset_name}/Artists/baseline_IR_metrics')
- 
-            IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
-            torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/Artists/baseline_IR_metrics/{artist}_{feature}_{mode}.pth')
-            trained_model_path = f'trained_models/{dataset_name}/Artists/{artist}_TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_10'
-            print(f'Features with model {trained_model_path}')
-            model_path = trained_model_path + '/model.pth'
-            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-            model.eval()
-            df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-            IR_metrics = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).evaluate_retrieval()
-            if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
-                os.makedirs(f'{trained_model_path}/IR_metrics')
-            torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
+
+    print(f'BASELINE METRIC with {feature}')
+    if os.path.exists(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics') == False:
+        os.makedirs(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics')
+    IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
+    torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics/{feature}_{mode}.pth')
 
 
-
-    else:
-        print(f'BASELINE METRIC with {feature}')
-        if os.path.exists(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics') == False:
-            os.makedirs(f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics')
-        IR_metrics_baseline = Evaluation(dataset_name, df,feature,device,mode).evaluate_retrieval()
-        torch.save(IR_metrics_baseline,f'trained_models/{dataset_name}/{data_split}/baseline_IR_metrics/{feature}_{mode}.pth')
-
-   
-        trained_model_path = f'trained_models/{dataset_name}/{data_split}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
-        print(f'Features with model {trained_model_path}')
-        model_path = trained_model_path + '/model.pth'
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-        model.eval()
-        df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
-        IR_metrics = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).evaluate_retrieval()
-        if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
-            os.makedirs(f'{trained_model_path}/IR_metrics')
-        torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
+    trained_model_path = f'trained_models/{dataset_name}/{data_split}/TripletResNet_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}_margin{margin}_notrans_epoch_30'
+    print(f'Features with model {trained_model_path}')
+    model_path = trained_model_path + '/model.pth'
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model.eval()
+    df[f'trained_{feature}'] = df[feature].apply(lambda x: model.forward_once(x).detach())
+    IR_metrics = Evaluation(dataset_name,df,f'trained_{feature}',device,mode).evaluate_retrieval()
+    if os.path.exists(f'{trained_model_path}/IR_metrics') == False:
+        os.makedirs(f'{trained_model_path}/IR_metrics')
+    torch.save(IR_metrics, f'{trained_model_path}/IR_metrics/metrics_{mode}.pth')
 
 if __name__ == '__main__':
     start_time = time.time() 

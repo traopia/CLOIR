@@ -210,25 +210,7 @@ def main(dataset_name,feature,data_split, num_examples, positive_based_on_simila
 
 
 
-def main_artists(dataset_name,feature,data_split, num_examples, positive_based_on_similarity, negative_based_on_similarity):
-    if dataset_name == 'wikiart':
-        df = pd.read_pickle('DATA/Dataset/wikiart/wikiartINFL.pkl')
-    elif dataset_name == 'fashion':
-        df = pd.read_pickle('DATA/Dataset/iDesigner/idesignerINFL.pkl')
-    if data_split == 'all':
-        artists = df['artist_name'].unique()
-    else:
-        artists = [data_split]
-    for artist in artists:
-        print(artist)
-        df = split_by_artist_given(df, artist)
-        if os.path.exists(f'DATA/Dataset_toload/{dataset_name}/Artists') == False:
-            os.makedirs(f'DATA/Dataset_toload/{dataset_name}/Artists')
-        device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
-        how_feature_positive = 'posfaiss' if positive_based_on_similarity else 'posrandom'
-        how_feature_negative = 'negfaiss' if negative_based_on_similarity else 'negrandom'
-        train_dataset = TripletLossDataset_features('train', df, num_examples, feature, device, positive_based_on_similarity, negative_based_on_similarity)
-        torch.save(train_dataset, f'DATA/Dataset_toload/{dataset_name}/Artists/{artist}_train_dataset_{feature}_{how_feature_positive}_{how_feature_negative}_{num_examples}.pt')
+
 
 if __name__ == "__main__":
     start_time = time.time() 
@@ -241,10 +223,8 @@ if __name__ == "__main__":
     parser.add_argument('--positive_based_on_similarity',action='store_true',help='Sample positive examples based on vector similarity or randomly')
     parser.add_argument('--negative_based_on_similarity', action='store_true',help='Sample negative examples based on vector similarity or randomly')
     args = parser.parse_args()
-    if args.artist_splits:
-        main_artists(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
-    else:
-        main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
+
+    main(args.dataset_name,args.feature,args.data_split, args.num_examples,args.positive_based_on_similarity, args.negative_based_on_similarity)
     end_time = time.time()
     elapsed_time = end_time - start_time  
     print("Time required to build dataset: {:.2f} seconds".format(elapsed_time))
