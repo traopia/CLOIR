@@ -23,19 +23,19 @@ Steps of experiments are performed with different setups, varying: dataset, feat
 
 1. Data Loader
 ```
-python create_data_loader.py --dataset_name "wikiart" --feature "$feature" --feature_extractor_name "random_artists" --num_examples 100 --positive_based_on_similarity
+python create_data_loader.py --dataset_name "wikiart" --feature "$feature" --data_split "stratified_artists" --num_examples 100 --positive_based_on_similarity
 
 ```
 2. Training model 
 
 ```
-python Triplet_Network.py --dataset_name "wikiart" --feature "$feature" --feature_extractor_name "random_artists" --num_examples 100 --positive_based_on_similarity
+python Triplet_Network.py --dataset_name "wikiart" --feature "$feature" --data_split "stratified_artists" --num_examples 100 --positive_based_on_similarity
 
 ```
 
 3. Evaluation
 ```
-python evaluation.py --dataset_name "wikiart" --feature "$feature" --feature_extractor_name "random_artists" --num_examples 100 --positive_based_on_similarity
+python evaluation.py --dataset_name "wikiart" --feature "$feature" --data_split "stratified_artists" --num_examples 100 --positive_based_on_similarity
 
 ```
 
