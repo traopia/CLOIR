@@ -1,12 +1,12 @@
-DATA/Dataset/
-wikiart/
 DATA/Dataset_toload/
-DATA/Dataset/
-wikiart/
-DATA/
+DATA/Dataset/wikiart/wikiartINFL_clip.pkl
+DATA/Dataset/wikiart/wikiartINFL.pkl
+DATA/Dataset/iDesigner/idesignerINFL.pkl
 wandb/
 trained_models/
 influence_test/
 experiments/
 images_data/
 ignore/
+
+
