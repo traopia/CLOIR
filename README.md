@@ -1,7 +1,9 @@
 # CLOIR A Contrastive Learning approach to Object Influence Retrieval
 This is the source code for the paper "Influence beyond similarity: a Contrastive Learning approach to Object Influence Retrieval".
 We introduce an approach to suggest the existence of influence relations between objects, having access to information about influence between their agents. 
-The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. An ![overview](images/method.pdf) of the approach is provided.
+The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. An ![overview](https://github.com/traopia/CLOIR/blob/main/images/method.pdf)
+
+(images/method.pdf) of the approach is provided.
 
 # Datasets
 1. Wikiart: All images are taken from the [WikiArt Dataset (Refined)](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset) github repo. The corresponding metadata has been scraped from [Wikiart] (https://www.wikiart.org). The influence between artist have been retrieved via a scraping from WikiData and WikiArt exploiting the relation [Influenced by](https://www.wikidata.org/wiki/Property:P737). 
