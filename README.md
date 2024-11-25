@@ -1,5 +1,5 @@
 # CLOIR A Contrastive Learning approach to Object Influence Retrieval
-This is the source code for the paper "Influence beyond similarity: a Contrastive Learning approach to Object Influence Retrieval".
+This is the source code for the [paper "Influence beyond similarity: a Contrastive Learning approach to Object Influence Retrieval"](https://link.springer.com/chapter/10.1007/978-3-031-77792-9_3), published as a [EKAW](https://ekaw.org) conference paper.
 We introduce an approach to suggest the existence of influence relations between objects, having access to information about influence between their agents. 
 The main steps of the approach include (i) sourcing of influence relations between agents (ii) feature extraction to represent the objects (iii) training of a contrastive network with triplet loss (iv) retrieval of suggested influential objects and evaluation. 
 ![overview](https://github.com/traopia/CLOIR/blob/main/images/method.png) 
