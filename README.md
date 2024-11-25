@@ -50,3 +50,37 @@ python evaluation.py --dataset_name "wikiart" --feature "$feature" --data_split 
 
 
 
+ # 🌟 CITATION 
+
+```
+@InProceedings{10.1007/978-3-031-77792-9_3,
+author="Liberatore, Teresa
+and Groth, Paul
+and Kackovic, Monika
+and Wijnberg, Nachoem",
+editor="Alam, Mehwish
+and Rospocher, Marco
+and van Erp, Marieke
+and Hollink, Laura
+and Gesese, Genet Asefa",
+title="Influence Beyond Similarity: A Contrastive Learning Approach to Object Influence Retrieval",
+booktitle="Knowledge Engineering and Knowledge Management",
+year="2025",
+publisher="Springer Nature Switzerland",
+address="Cham",
+pages="35--52",
+abstract="Innovative art or fashion trends do not spring out of nowhere: they are products of societal contexts, movements and economic turning points. To understand the dynamics of innovation, it is necessary to understand influence relations between agents (e.g. artists, designers, creatives) and between the objects (e.g. clothes, paintings) that these agents produce. However, acquiring knowledge about these connections is challenging given that they are frequently undocumented. Recent literature has focused on discovering influence relations between agents, utilizing either object similarity or social network information. However, these methods often overlook the importance of direct relations between objects or oversimplify the complex nature of influence by approximating it with similarity.",
+isbn="978-3-031-77792-9"
+}
+
+```
+If you use this code repository, please cite us as above :)
+
+**Thank you for your interest in our work!**
+
+
+
+
+
+
+
